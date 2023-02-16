@@ -47,7 +47,7 @@ m3 = y.add(x)
 ```python
 y1 = x[:, 1]
 y2 = x[2, :]
-y2 += 1 # 源tensor也被更改了
+y2 += 1                                             # 源tensor也被更改了
 ```
 - 维度变换
 ```python
@@ -55,7 +55,7 @@ x = torch.randa(3, 4)
 # torch.view()返回的结果与源tensor共享内存
 y = x.view(12)
 y2 = x.view(4, 3)
-y3 = x.view(-1, 6) # -1表示维数由其他维决定
+y3 = x.view(-1, 6)                                  # -1表示维数由其他维决定
 # torch.reshape()返回的结果不一定与源tensor共享内存，不推荐使用
 y4 = x.reshape(4, 3)
 # 使用clone()命令后再通过view()改变维度，可以不与源tensor共享内存
@@ -68,7 +68,52 @@ y6 += 1
 ```python
 m = x[1:1].item()
 ```
-- 转置、索引、切片、数学运算、线性代数
+- 转置、索引、切片
+```python
+z = x.t()                                           # 转置操作，共享内存
+# 初级索引 同迭代器切片
+# 高级索引
+z2 = torch.index_select(input, dim, index)          # 从input的dim维的index位置挑选数据
+z3 = torch.masked_select(input, mask, out=None)     # 从input中掩码mask条件的数据
+```
+- 数学运算、线性代数
+```python
+x = torch.arange(1, 13).view(3, 4)
+y = torch.randn(3, 4)
+# 对应元素相乘
+c1 = x * y
+c2 = torch.mul(a, b)
+# 对应元素相除
+c1 = a / b
+c2 = torch.div(a, b)
+# 矩阵相乘
+c1 = torch.mm(x, y.t())
+c2 = torch.matmul(x, y.t())
+c3 = x @ y.t()
+# 多维矩阵相乘，前面维度相同时可以做运算，对应位置进行后两个维度的矩阵乘法
+x = torch.rand(4, 3, 28, 64)
+y = torch.rand(4, 3, 64, 32)
+print(torch.matmul(x, y).shape)
+# 多维矩阵相乘，前面维度适用广播机制
+x = torch.rand(4, 3, 28, 64)
+y = torch.rand(4, 1, 64, 32)
+print(torch.matmul(x, y).shape)
+# 幂与开方运算
+x = torch.full([2, 2], 3)
+c1 = x ** 2
+c2 = x.pow(2)
+c3 = c2.sqrt()
+# 指对运算
+a = torch.exp(x)
+b = torch.log(a)
+# 近似，取下、取上、取整数、取小数、四舍五入
+a, b, c, d, e = x.floor(), x.ceil(), x.trunc(), x.frac(), x.round()
+# 裁剪：常用在梯度离散或梯度爆炸时
+grad = torch.rand(2, 3)
+grad_max, grad_min, grad_mid = grad.max(), grad.min(), grad.median()    # 最大值、最小值、平均值 
+c1 = grad.clamp(10)                                                     # 最小是10，小于10的都变成10
+c2 = grad.clamp(3, 10)                                                  # 最小是3，小于3的都变成3；最大是10，大于10的都变成10
+```
 - 广播机制(broadcasting)</br>
 当对两个形状不同的Tensor按元素运算时，可能会触发广播机制：先适当复制元素使这两个Tensor形状相同后再按元素运算。
 ```python
