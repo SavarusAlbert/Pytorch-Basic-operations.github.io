@@ -6,7 +6,7 @@
         - [chapter03 Pytorch模型定义](Pytorch/chapter3.md)
         - [chapter04 Pytorch进阶技巧](Pytorch/chapter4.md)
     - [Numpy API]
-        - [chapter01 ](Numpy/chapter1.md)
-        - [chapter02 ](Numpy/chapter2.md)
+        - [chapter01 Numpy数组的创建](Numpy/chapter1.md)
+        - [chapter02 Numpy数组的基本操作](Numpy/chapter2.md)
         - [chapter03 ](Numpy/chapter3.md)
         
