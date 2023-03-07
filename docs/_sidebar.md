@@ -8,5 +8,5 @@
     - [Numpy API]
         - [chapter01 Numpy数组的创建](Numpy/chapter1.md)
         - [chapter02 Numpy数组的基本操作](Numpy/chapter2.md)
-        - [chapter03 ](Numpy/chapter3.md)
+        - [chapter03 Numpy在模型训练中的操作](Numpy/chapter3.md)
         
