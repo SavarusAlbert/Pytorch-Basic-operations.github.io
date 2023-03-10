@@ -9,4 +9,7 @@
         - [chapter01 Numpy数组的创建](Numpy/chapter1.md)
         - [chapter02 Numpy数组的基本操作](Numpy/chapter2.md)
         - [chapter03 Numpy在模型训练中的操作](Numpy/chapter3.md)
-        
+    - [Pandas API]
+        - [chapter01 Pandas基础](Pandas/chapter1.md)
+        - [chapter02 索引](Pandas/chapter2.md)
+        - [chapter03 分组](Pandas/chapter3.md)
