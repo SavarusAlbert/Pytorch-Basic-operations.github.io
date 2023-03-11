@@ -13,3 +13,5 @@
         - [chapter01 Pandas基础](Pandas/chapter1.md)
         - [chapter02 索引](Pandas/chapter2.md)
         - [chapter03 分组](Pandas/chapter3.md)
+        - [chapter04 变形](Pandas/chapter4.md)
+        - [chapter05 连接](Pandas/chapter5.md)
