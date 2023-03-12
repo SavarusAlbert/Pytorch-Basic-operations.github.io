@@ -15,3 +15,7 @@
         - [chapter03 分组](Pandas/chapter3.md)
         - [chapter04 变形](Pandas/chapter4.md)
         - [chapter05 连接](Pandas/chapter5.md)
+        - [chapter06 缺失数据](Pandas/chapter6.md)
+        - [chapter07 文本数据](Pandas/chapter7.md)
+        - [chapter08 分类数据](Pandas/chapter8.md)
+        - [chapter09 时序数据](Pandas/chapter9.md)

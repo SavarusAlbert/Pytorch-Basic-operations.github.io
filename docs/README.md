@@ -15,9 +15,15 @@ Pytorch/Numpy/Pandas/Sklearn 学习笔记
     - chapter02 Numpy数组的基本操作
     - chapter03 Numpy在模型训练中的操作
 - Pandas API
-    - chapter01 
-    - chapter02 
-    - chapter03 
+    - chapter01 Pandas基础
+    - chapter02 索引
+    - chapter03 分组
+    - chapter04 变形
+    - chapter05 连接
+    - chapter06 缺失数据
+    - chapter07 文本数据
+    - chapter08 分类数据
+    - chapter09 时序数据
 
 
 ## 学习资料
