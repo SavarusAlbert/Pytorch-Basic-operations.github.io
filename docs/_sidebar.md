@@ -19,3 +19,9 @@
         - [chapter07 文本数据](Pandas/chapter7.md)
         - [chapter08 分类数据](Pandas/chapter8.md)
         - [chapter09 时序数据](Pandas/chapter9.md)
+    - [Generative model]
+        - [chapter01 生成模型](Generative_model/chapter1.md)
+        - chapter02 论文精读
+            - [VAE论文精读](Generative_model/chapter2.md)
+            - [DDPM论文精读](Generative_model/chapter3.md)
+            - [LDM论文泛读](Generative_model/chapter4.md)
