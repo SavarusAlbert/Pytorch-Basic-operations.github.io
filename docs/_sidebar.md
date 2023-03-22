@@ -21,7 +21,12 @@
         - [chapter09 时序数据](Pandas/chapter9.md)
     - [Generative model]
         - [chapter01 生成模型](Generative_model/chapter1.md)
-        - chapter02 论文精读
+        - VAE、DDPM、LDM论文精读
             - [VAE论文精读](Generative_model/chapter2.md)
             - [DDPM论文精读](Generative_model/chapter3.md)
             - [LDM论文泛读](Generative_model/chapter4.md)
+        - Flow论文精读
+            - [NICE论文泛读](Generative_model/chapter5.md)
+            - [Real NVP论文泛读](Generative_model/chapter6.md)
+            - [Glow论文泛读](Generative_model/chapter7.md)
+            
