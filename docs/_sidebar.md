@@ -29,4 +29,4 @@
             - [NICE论文泛读](Generative_model/chapter5.md)
             - [Real NVP论文泛读](Generative_model/chapter6.md)
             - [Glow论文泛读](Generative_model/chapter7.md)
-            
+            - [DeFlow论文泛读](Generative_model/chapter8.md)

@@ -24,6 +24,10 @@ Pytorch/Numpy/Pandas/Sklearn 学习笔记
     - chapter07 文本数据
     - chapter08 分类数据
     - chapter09 时序数据
+- Generative model
+    - 生成模型概述
+    - VAE、DDPM、LDM论文精读
+    - Flow论文精读
 
 
 ## 学习资料

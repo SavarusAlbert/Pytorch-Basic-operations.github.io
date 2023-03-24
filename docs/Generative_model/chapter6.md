@@ -14,7 +14,7 @@ $$\begin{align*}
 y_{1:d}&=x_{1:d}\\
 y_{d+1:D}&=x_{d+1:D}{\odot}{\rm{exp}}\left(s(x_{1:d})\right)+t(x_{1:d})
 \end{align*}$$
-其中 $s$ 和 $t$ 分别表示 $\mathbb{R}^d\rightarrow\mathbb{R}^{D-d}$ 上的标量乘和平移，$\odot$ 是逐元素哈达玛积。
+其中 $s$ 和 $t$ 分别表示 $\mathbb{R}^d\rightarrow\mathbb{R}^{D-d}$ 上的缩放和平移，$\odot$ 是逐元素哈达玛积。
 
 ### 6.1.3 模型性质
 - 变换的雅克比矩阵为：
@@ -32,7 +32,7 @@ x_{d+1:D}&=(y_{d+1:D}-t(y_{1:d})){\odot}{\rm{exp}}\left(-s(y_{1:d})\right)
 \end{align*}$$
 因此模型的采样是高效的。同时，计算耦合层的逆也不需要计算 $s$ 和 $t$ 的逆，所以这两个函数可以做复杂的设计。
 
-![](./img/5.1Real_NVP.png ':size=60%')
+![](./img/6.1Real_NVP.png ':size=60%')
 
 ## 6.2 其他技巧
 ### 6.2.4 掩码卷积
@@ -42,7 +42,7 @@ $$y=b{\odot}x+(1-b){\odot}\left(x{\odot}{\rm{exp}}(s(b{\odot}x))+t(b{\odot}x)\ri
     - 棋盘掩码：在空间坐标之和为奇数时取值为1，否则为0。
     - 通道方向掩码：在通道维度的前半部分为1，后半部分为0。
 
-![](./img/5.2Real_NVP.png ':size=80%')
+![](./img/6.2Real_NVP.png ':size=80%')
 
 ### 6.2.5 组合耦合层
 - 耦合层的设计使得某些部分始终保持不变，所以我们设计交替变换的组合耦合层。
@@ -61,7 +61,7 @@ z^{(L)}&=f^{(L)}(h^{(L-1)})\\
 z&=(z^{(1)},\cdots,z^{(L)})
 \end{align*}$$
 
-![](./img/5.3Real_NVP.png ':size=40%')
+![](./img/6.3Real_NVP.png ':size=40%')
 
 ### 6.2.7 批规范化
 - 进一步改善训练，我们对 $s$ 和 $t$ 使用残差连接、批归一化和权重归一化。
