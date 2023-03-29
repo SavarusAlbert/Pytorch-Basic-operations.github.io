@@ -20,7 +20,7 @@
         - [chapter08 分类数据](Pandas/chapter8.md)
         - [chapter09 时序数据](Pandas/chapter9.md)
     - [Generative model]
-        - [chapter01 生成模型](Generative_model/chapter1.md)
+        - [生成模型](Generative_model/chapter1.md)
         - VAE、DDPM、LDM论文精读
             - [VAE论文精读](Generative_model/chapter2.md)
             - [DDPM论文精读](Generative_model/chapter3.md)
@@ -30,3 +30,6 @@
             - [Real NVP论文泛读](Generative_model/chapter6.md)
             - [Glow论文泛读](Generative_model/chapter7.md)
             - [DeFlow论文泛读](Generative_model/chapter8.md)
+    - [Language model]
+        - [语言模型](Language_model/chapter1.md)
+        - [词嵌入](Language_model/chapter2.md)
