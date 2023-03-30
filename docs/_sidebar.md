@@ -33,3 +33,5 @@
     - [Language model]
         - [语言模型](Language_model/chapter1.md)
         - [词嵌入](Language_model/chapter2.md)
+        - 文本分类论文精读
+            - [ReNN系列论文泛读](Language_model/chapter3.md)

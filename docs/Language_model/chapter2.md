@@ -55,8 +55,50 @@ $$f(x)=\left\{\begin{array}{ll}
 - 增加了上述权重函数后，构建损失函数：
 $$J=\sum\limits_{i,j=1}^{V}f\left(X_{i j}\right)\left(w_{i}^{T}\tilde{w}_{j}+b_{i}+\tilde{b}_{j}-{\rm{log}}X_{ij}\right)^2$$
 
+## 2.3 FastText
+#### word-level Model
+- 基于word单词作为基本单位。能够很好的对词库中每一个词进行向量表示。
+    - 问题描述：容易出现单词不存在于词汇库中的情况
+    - 解决方法：最佳语料规模，使系统能够获得更多的词汇量
+    - 问题描述：如果遇到了不正式的拼写, 系统很难进行处理
+    - 解决方法：矫正或加规则约束
+#### Character-Level Model
+- 基于 Character 作为基本单位。能够很好的对字库中每一个 Char 进行向量表示。
+    - 问题描述：输入句子变长，使得数据变得稀疏，而且对于远距离的依赖难以学到，训练速度降低
+    - 解决方法：利用多层卷积、池化、残差等方法
+#### Subword Model
+介于 word-level Model 和 Character-level 之间的 Model。
+- BPE：将经常出现的byte pair用一个新的byte来代替，构成新的文本库。
+- sentencepiece model：将词间的空白也当成一种标记，可以直接处理sentence，而不需要将其pre-tokenize成单词。
+#### Hybrid Model
+- 混合模型，对 word-level 和 character-level 进行加权求和。
+#### FastText
+- n-gram：将每个 word 表示成 bag of character n-gram 以及单词本身的集合，例如对于where这个单词和n=3的情况，它可以表示为 <wh,whe,her,ere,re>。
+- 模型结构：
+    - 输入层：输入单词的 n-gram 特征
+    - 隐藏层：对多个词向量加权平均，得到 center word $w$ 与 context word $c$ 的分数：
+    $$s(w,c)=\sum\limits_{g{\in}G_w}\vec{z_g}^{\top}\vec{v_c}$$
+    其中 $G_w$ 是单词 $w$ 的 n-gram 集合。
+    - 输出层：softmax 多分类。当类别过多时，可以用Hierarchical softmax 降低算法复杂度。
 
+![](./img/2.1FastText.png ':size=80%')
 
-## Polyglot
-## Senna
-## SSKIP
+- 算法代码
+```python
+import fasttext
+# 训练模型
+classifier = fasttext.train_supervised(input, lr=0.1, dim=100, 
+                   ws=5, epoch=5, minCount=1, 
+                   minCountLabel=0, minn=0, 
+                   maxn=0, neg=5, wordNgrams=1, 
+                   loss="softmax", bucket=2000000, 
+                   thread=12, lrUpdateRate=100,
+                   t=1e-4, label="__label__", 
+                   verbose=2, pretrainedVectors="")
+# 保存模型
+classifier.save_model('./model/fasttext.bin')
+# 模型预测
+labels = classifier.predict(texts)
+# 模型加载
+model = fasttext.load_model(path)
+```
