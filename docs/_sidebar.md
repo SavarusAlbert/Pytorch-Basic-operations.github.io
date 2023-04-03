@@ -36,4 +36,6 @@
         - 文本分类论文精读
             - [ReNN系列论文泛读](Language_model/chapter3.md)
             - [MLP系列论文泛读](Language_model/chapter4.md)
+            - [CNN系列论文泛读](Language_model/chapter5.md)
+            - [RNN系列论文泛读](Language_model/chapter6.md)
             
