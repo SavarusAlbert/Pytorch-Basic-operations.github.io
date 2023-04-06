@@ -34,8 +34,8 @@
         - [语言模型](Language_model/chapter1.md)
         - [词嵌入](Language_model/chapter2.md)
         - 文本分类论文精读
-            - [ReNN系列论文泛读](Language_model/chapter3.md)
+            - [RecNN系列论文泛读](Language_model/chapter3.md)
             - [MLP系列论文泛读](Language_model/chapter4.md)
             - [CNN系列论文泛读](Language_model/chapter5.md)
             - [RNN系列论文泛读](Language_model/chapter6.md)
-            
+            - [Attention系列论文泛读](Language_model/chapter7.md)

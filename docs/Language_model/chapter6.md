@@ -253,8 +253,110 @@ $$g={\rm{log}}_2L-1$$
 - 通过反向传播训练网络，使用AdaGrad优化更新。
 
 ## 6.5 2016-oh-2LSTMp
+- 半监督文本分类的对抗训练方法</br>
+(Adversarial Training Methods for Semi-Supervised Text Classification)
+
+### 6.5.1 模型
+- 我们记 $T$ 个单词的序列为 $\{w^{(t)}|t=1,\cdots,T\}$，序列对应的标签为 $y$。
+- 定义词嵌入矩阵 $\mathbf{V}\in\mathbb{R}^{(K+1){\times}D}$，其中 $K$是词汇表的大小，每一行 $v_k$ 对应于第 $k$ 个单词的词嵌入。定义第 $(K+1)$ 个词嵌入为特殊的句子结尾词嵌入 $v_{\rm{eos}}$。
+- 我们使用一个简单的LSTM神经网络模型来做文本分类，在时间步 $t$，输入离散单词 $w^{(t)}$ 和对应的词嵌入 $v^{(t)}$。如下图：
+
+![](./img/6.5.1oh-2LSTMp.png ':size=60%')
+- 我们尝试引入双向LSTM，通过concat模型输出来预测标签。
+- 在对抗和虚拟对抗训练中，我们训练分类器使其对嵌入的扰动具有鲁棒性，如下图所示：
+
+![](./img/6.5.2oh-2LSTMp.png ':size=60%')
+- 该模型可以通过学习具有非常大范数的嵌入来使扰动失效，为了防止这种无效的情况，当我们将对抗和虚拟对抗训练应用于上面定义的模型时，将嵌入 $v_k$ 替换为归一化的嵌入 $\bar{v}_k$：
+$$\bar{v}_k=\frac{v_k-{\rm{E}}(v)}{\sqrt{{\rm{Var}}(v)}},\quad{\rm{E}}(v)=\sum\limits_{j=1}^Kf_jv_j,\quad{\rm{Var}}(v)=\sum\limits_{j=1}^Kf_j(v_j-{\rm{E}}(v))^2$$
+其中 $f_j$ 是第 $j$ 个词在训练集中的频率。
+
+### 6.5.2 对抗和虚拟对抗训练
+- 对抗训练是一种新颖的分类器正则化方法，以提高对小的、近似的最坏情况扰动的鲁棒性。
+- 我们记输入为 $x$，分类器的参数为 $\theta$。训练时，在损失函数中加上下面这项：
+$$-{\rm{log}}p(y|x+r_{\rm{adv}};\theta)$$
+其中 $r_{\rm{adv}}=\mathop{\rm{argmin}}\limits_{r,\|r\|\leq\epsilon}{\rm{log}}p(y|x+r;\^{\theta})$，$r$ 是输入上的扰动，$\^{\theta}$ 是当前分类器参数的不变的集合。使用常数拷贝而不是 $\theta$ 表示不使用反向传播算法通过对抗样本构造过程传播梯度。
+- 在训练的每一步，我们识别出当前模型 $p(y|x;\^{\theta})$ 中的最坏扰动 $r_{\rm{adv}}$，通过最小化上述式子来训练模型对这些扰动的鲁棒性。然而，一般情况下我们不能精确地计算这个值，因为对于许多模型，关于 $r$ 的精确极小化是困难的。
+- Goodfellow et al. 提出了一种逼近方法，通过对 ${\rm{log}}p(y|x;\^{\theta})$ 在 $x$ 附近线性逼近，以及一个L2范数，可以得到：
+$$r_{\rm{adv}}=-\frac{g}{\|g\|_2}\epsilon,{\quad}g=\nabla_x{\rm{log}}p(y|x;\^{\theta})$$
+通过反向传播可以轻易计算这个扰动。
+- 虚拟对抗训练是对抗训练的正则版本，通过下式计算损失函数：
+$${\rm{KL}}[p(\cdot|x;\^{\theta})\|p(\cdot|x+r_{\rm{v-adv}};\theta)]$$
+其中 $r_{\rm{v-adv}}=\mathop{\rm{argmax}}\limits_{r,\|r\|\leq\epsilon}{\rm{KL}}[p(\cdot|x;\^{\theta})\|p(\cdot|x+r;\^{\theta})]$。
+- 式中不需要实际标签 $y$，因此虚拟对抗训练能够应用于半监督学习。
+
+#### 对抗训练
+- 我们对词嵌入应用对抗扰动。记一系列词嵌入 $[\bar{v}^{(1)},\bar{v}^{(2)},\cdots,\bar{v}^{(T)}]$ 的concatenation为 $s$，模型条件概率为 $p(y|s;\theta)$。那么我们定义对抗扰动为：
+$$r_{\rm{adv}}=-\frac{g}{\|g\|_2}\epsilon,{\quad}g=\nabla_s{\rm{log}}p(y|s;\^{\theta})$$
+- 为了使对抗扰动更具鲁棒性，我们定义对抗损失为：
+$$L_{\rm{adv}}(\theta)=-\frac{1}{N}\sum\limits_{n=1}^N{\rm{log}}p(y_n|s_n+r_{\rm{adv,n}};\theta)$$
+其中 $N$ 是有标签样例数。
+- 在对抗训练中，通过SGD来最小化负对数似然和 $L_{\rm{adv}}$ 的和。
+
+#### 虚拟对抗训练
+- 在虚拟对抗训练中，每一步我们计算虚拟对抗扰动的逼近式：
+$$r_{\rm{v-adv}}=-\frac{g}{\|g\|_2}\epsilon,{\quad}g=\nabla_{s+d}{\rm{KL}}[p(\cdot|s;\^{\theta})\|p(\cdot|s+d;\^{\theta})]$$
+其中 $d$ 是一个 $TD$ 维的很小的随机向量。
+- 虚拟对抗损失函数定义为：
+$$L_{\rm{v-adv}}(\theta)=-\frac{1}{N^\prime}\sum\limits_{n\prime=1}^{N^\prime}{\rm{KL}}[p(\cdot|s_{n^\prime};\^{\theta})\|p(\cdot|s_{n^\prime}+r_{\rm{v-adv},n^\prime};\^{\theta})]$$
+其中 $N^\prime$ 是有标签和无标签的样例数和。
 
 
 ## 6.6 2016-BLSTM-2DCNN
+- 结合双向Lstm和二维最大池化改进文本分类</br>
+(Text Classification Improved by Integrating Bidirectional LSTM with Two-dimensional Max Pooling)
+- 模型由4部分组成，包括BLSTM层、二维卷积层、二维最大池化层和输出层。如下图所示：
+
+![](./img/6.6.1BLSTM-2DCNN.png ':size=90%')
+
+### 6.6.1 BLSTM层
+- 给定一个长度为 $l$ 的文本序列 $S=\{x_1,x_2,\cdots,x_l\}$，每一时间步 $t$，记忆cell $c_t$ 和隐藏状态 $h_t$ 由下式更新：
+$$\quad\left[\begin{array}{c}
+i_t\\
+f_t\\
+o_t\\
+\^{c}_t
+\end{array}\right]=\left[\begin{array}{c}
+\sigma\\
+\sigma\\
+\sigma\\
+{\rm{tanh}}
+\end{array}\right]W\cdot[h_{t-1},x_t]$$
+$$\begin{align*}
+c_t&=f_t{\odot}c_{t-1}+i_t{\odot}\^{c}_t\\
+h_t&=o_t{\odot}{\rm{tanh}}(c_t)
+\end{align*}$$
+其中 $x_t$ 是 $t$ 步的输入，$i,f,o$ 是输入门、遗忘门和输出门，$\^{c}$ 是当前的cell状态，$\sigma$ 是sigmoid函数，$\odot$ 是哈达玛积。
+- 双向LSTM通过将不同时间方向的隐状态concat起来，来学习未来的信息。第 $i$ 个单词的输出如下：
+$$h_i=[\mathop{h_i}\limits ^{\rightarrow}{\oplus}\mathop{h_i}\limits ^{\leftarrow}]$$
+
+### 6.6.2 卷积神经网络
+- 由于BLSTM可以访问未来和过去的上下文，因此 $h_i$ 与文本中所有其他单词相关，可以将特征向量组成的矩阵视为"图像"来处理。
+#### 二维卷积层
+- 由BLSTM层得到的矩阵 $H=\{h_1,h_2,\cdots,h_l\},H\in\mathbb{R}^{l{\times}d^w}$，其中 $d^w$ 是词向量的大小。利用窄卷积提取 $H$ 上的局部特征。
+- 卷积算子包括一个2D过滤器 $\mathbf{m}\in\mathbb{R}^{k{\times}d}$，应用在 $k$ 个单词和 $d$ 个特征向量的窗口上。具体如下式：
+$$o_{i,j}=f(\mathbf{m}{\cdot}H_{i:i+k-1,j:j+d-1}+b)$$
+其中 $i\in[1,l-k+1],j\in[1,d^w-d+1]$，$\cdot$ 是点积，$b\in\mathbb{R}$ 是偏置项，$f$ 是非线性函数。
+- 应用于矩阵 $H$ 的每个窗口得到特征图 $O$：
+$$O=[o_{1,1},o_{1.2},\cdots,o_{l-k+1,d^w-d+1}]$$
+- 上面描述了一个过滤器，卷积层可以设置多个相同大小的过滤器学习互补特征，也可以设置多个不同大小的过滤器。
+
+#### 二维最大池化层
+- 利用2D最大池化得到固定长度的向量。2D最大池化 $p\in\mathbb{R}^{p_1{\times}p_2}$ 对矩阵 $O$ 的每个窗口提取最大值：
+$$p_{i,j}=down(O_{i:i+p_1,j:j+p_2})$$
+其中 $down(\cdot)$ 表示2D最大池化函数，$i=(1,1+p_1,\cdots,1+(l-k+1/p_1-1){\cdot}p_1)$，$j=(1,1+p_2,\cdots,1+(d^w-d+1/p_2-1){\cdot}p_2)$。
+- 池化的结果合并为：
+$$h^*=[p_{1,1},p_{1,1+p_2},\cdots,p_{1+(l-k+1/p_1-1),1+(d^w-d+1/p_2-1){\cdot}p_2}]$$
+其中 $h^*\in\mathbb{R}$，$h^*$ 的长度为 ${\lfloor}l-k+1/p_1{\rfloor}\times{\lfloor}d^w-d+1/p_2{\rfloor}$。
+
+### 6.6.3 输出层
+- 对于文本分类，2D最大池化层的输出 $h^*$ 是输入文本 $S$ 的整体表示。然后传给softmax分类器，预测语义关系标签 $\^{y}$：
+$$\begin{align*}
+\^{p}(y|s)=&{\rm{softmax}}(W^{(s)}h^*+b^{(s)})\\
+\^{y}&={\rm{arg}}\mathop{\rm{max}}\limits_y\^{p}(y|s)
+\end{align*}$$
+- 目标函数为最小化正则交叉熵损失：
+$$J(\theta)=-\frac{1}{m}\sum\limits_{i=1}^mt_i{\rm{log}}(y_i)+\lambda\|\theta\|^2_F$$
+其中 $t\in\mathbb{R}^m$ 是ground truth独热表示，$y\in\mathbb{R}^m$ 是softmax分类出的每个类别的估计概率，$m$ 是目标类别的个数，$\lambda$ 是L2正则超参数。
+- 通过小批量SGD训练，AdaDelta优化更新。
 
 ## 6.7 2016-Multi-Task

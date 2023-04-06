@@ -1,4 +1,4 @@
-# ReNN系列论文泛读
+# RecNN系列论文泛读
 ## 3.1 2011-RAE
 - 用于预测情感分布的半监督递归自编码器</br>
 (Semi-Supervised Recursive Autoencoders for Predicting Sentiment Distributions)
