@@ -28,7 +28,15 @@ Pytorch/Numpy/Pandas/Sklearn 学习笔记
     - 生成模型概述
     - VAE、DDPM、LDM论文精读
     - Flow论文精读
-
+- Language model
+    - 语言模型
+    - 词嵌入
+    - 文本分类论文精读
+        - RecNN系列论文泛读
+        - MLP系列论文泛读
+        - CNN系列论文泛读
+        - RNN系列论文泛读
+        - Attention系列论文泛读
 
 ## 学习资料
 - [深入浅出PyTorch](https://datawhalechina.github.io/thorough-pytorch/index.html)
