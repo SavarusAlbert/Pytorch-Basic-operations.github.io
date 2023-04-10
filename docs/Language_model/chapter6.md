@@ -359,4 +359,11 @@ $$J(\theta)=-\frac{1}{m}\sum\limits_{i=1}^mt_i{\rm{log}}(y_i)+\lambda\|\theta\|^
 其中 $t\in\mathbb{R}^m$ 是ground truth独热表示，$y\in\mathbb{R}^m$ 是softmax分类出的每个类别的估计概率，$m$ 是目标类别的个数，$\lambda$ 是L2正则超参数。
 - 通过小批量SGD训练，AdaDelta优化更新。
 
-## 6.7 2016-Multi-Task
+## 6.7 2017-DeepMoji
+
+## 6.8 2017-TopicRNN
+
+## 6.9 2017- Miyato et al.
+
+
+## 6.10 2020-RNN-Capsule

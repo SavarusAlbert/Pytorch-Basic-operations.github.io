@@ -251,3 +251,17 @@ $$h_t=o_t{\odot}{\rm{tanh}}(c_t)$$
 
 
 ## 7.4 2017-Lin et al
+
+## 7.5 2018-SCM
+
+## 7.6 2018-ELMo
+
+## 7.7 2018-BiBloSA
+
+## 7.8 2019-AttentionXML
+
+## 7.9 2019-HAPN
+
+## 7.10 2019-Proto-HATT
+
+## 7.11 2019-STCKA
