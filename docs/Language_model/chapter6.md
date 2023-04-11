@@ -360,10 +360,145 @@ $$J(\theta)=-\frac{1}{m}\sum\limits_{i=1}^mt_i{\rm{log}}(y_i)+\lambda\|\theta\|^
 - 通过小批量SGD训练，AdaDelta优化更新。
 
 ## 6.7 2017-DeepMoji
+- 使用数以百万计的emoji学习任意域表示来检测情感、情绪和讽刺</br>
+(Using millions of emoji occurrences to learn any-domain representations for detecting sentiment, emotion and sarcasm)
+
+### 6.7.1 预训练
+- 在很多情况下，表情符号是文本情感内容的代替。因此，在预测哪个表情最初是文本的一部分的分类任务上进行预训练，可以提高在目标任务上的表现。社交媒体中包含大量带有emoji符号的短文本，可以作为噪音标签进行预训练。
+- 我们使用了Twitter从2013年1月1日到2017年6月1日的数据，相对的，使用任何带有emoji的数据集都可以。
+- 预训练数据集只使用没有URL的英文推文。我们的假设是，从URL中获取的内容对于理解推文中的情感内容很可能是重要的。因此，我们移除了URL。
+- 恰当的标记化对泛化很重要。具有2个或2个以上重复字符的单词被缩短为同一个token(例如'loool'和'looooool'被标记为相同)。类似地，我们对所有URL、艾特@、编号等使用同一个特殊的token来替代。
+- 必须包含至少1个非标点、非emoji、非特殊token的词句才会纳入训练集。
+- 许多推文包含同一表情符号的多次重复或多个不同表情符号。在训练数据中，我们对于每个独特的表情符号类型，保存一个单独的tweet，以该表情符号为标签进行预训练，多次重复只保留1个。
+
+### 6.7.2 模型
+- 模型结构如下图：
+
+![](./img/6.7.1DeepMoji.png ':size=60%')
+- 包括双向LSTM层，Attention层，以及残差连接，最后接入softmax分类器。
+- 模型在构建文本的表示时，注意力机制能够权衡每个单词对于预测任务的重要性：
+$$\begin{align*}
+e_t&=h_tw_a\\
+a_t&=\frac{{\rm{exp}}(e_t)}{\sum_{i=1}^T{\rm{exp}}(e_i)}\\
+v&=\sum\limits_{i=1}^Ta_ih_i
+\end{align*}$$
+其中 $h_t$ 是时间步 $t$ 的词表示，$w_a$ 是注意力权重。$a_t$ 是注意力分数，$v$ 是文本的向量表示。
+- 注意力机制和残差连接提高了模型性能。
+
+### 6.7.3 迁移学习
+- 通过禁用参数更新来防止过拟合，我们的预训练模型可以通过多种方式对目标任务进行微调，并使用一些方法"冻结"层。
+- 一种常见的做法是使用网络作为特征提取器，在对目标任务进行微调时，除了最后一层外，模型中的所有层都被冻结，简记为last。或者，另一种常见的方法是使用预训练的模型作为初始化，其中完整的模型是未冻结的，简记为full。
+- 我们提出了一种新的简单的迁移学习方法："链式解冻"(chain-thaw)，每次依次解冻和微调单层。该方法以牺牲微调所需的额外计算能力为代价，提高了目标任务的准确性。通过分别训练每一层，模型能够调整整个网络中的模式，降低过拟合的风险。在无监督学习的情况下，序列微调似乎具有类似于逐层训练的正则化效果。
+- 具体地说，链式解冻方法首先将任何新的层(往往只有一个Softmax层)微调到目标任务，直到在验证集上收敛。然后从网络中的第一层开始逐层微调。最后，利用所有层对整个模型进行训练。每次模型在验证集上收敛时，权重被重新加载到最佳设置，从而以类似于提前停止的方式防止过拟合。如下图所示：
+
+![](./img/6.7.2DeepMoji.png ':size=60%')
+
+仅执行步骤a与 last 方法相同，只做步骤d与 full 方法相同。
+- 链式解冻方法的一个好处是能够将词汇表扩展到新的领域，而不会有过拟合的风险。对于给定的数据集，多达10000个来自训练集的新词被添加到词汇表中。
 
 ## 6.8 2017-TopicRNN
+- 一个具有长程语义依赖的循环神经网络</br>
+(A Recurrent Neural Network with Long-Range Semantic Dependency)
+
+### 6.8.1 概率主题模型
+- 概率主题模型是用来捕捉全局语义一致性的模型族。它们为文档集合的总结、组织和导航提供了强有力的工具。
+- 这类模型的一个基本目标是找到一组词，它们倾向于共同出现在同一文档中。这些词组被称为主题，代表一种概率分布。然后，文档被表示为这些潜在主题的混合物，通过后验推断，学习到的主题捕获了词聚类的语义一致性。
+- 最简单的概率主题模型是潜在狄利克雷分配(LDA)。假定 $K$ 个主题 $\beta=\{\beta_1,\cdots,\beta_K\}$，每一个都是词汇表上的一个概率分布。LDA生成过程如下：
+    - 首先随机生成 $K$ 个话题的单词分布 $\beta_k\sim_{iid}{\rm{Dirichlet}}(\tau)$，服从狄利克雷分布。
+    - 然后对于每个文档中包含的词 $y_{1:T}$，独立的生成文档级别的变量和数据：
+        - 根据超参数 $\alpha$ 随机生成参数向量 $\theta\sim{\rm{Dirichlet}}(\alpha)$；
+        - 对文档的第 $t$ 个单词：
+            - 生成话题 $z_t\sim{\rm{Dirichlet}}(\theta)$；
+            - 然后生成单词 $y_t\sim{\rm{Dirichlet}}(\beta_{z_t})$；
+    - 忽略 $z_t$，我们可以得到关于单词的概率，具体为：
+    $$p(y_{1:T}|\beta)={\int}p(\theta)\prod\limits_{t=1}^T\sum\limits_{z_t}p(z_t|\theta)p(y_t|z_t,\beta)d\theta={\int}p(\theta)\prod\limits_{t=1}^T(\beta\theta)_{y_t}d\theta$$
+- 很多主题模型是词袋模型，缺点是忽略了词序。另一个问题是它们不能很好地建模停用词。这是因为停用词通常不携带语义，它们的出现主要是为了根据语言的语法使句子更具可读性。停用词频繁地出现在几乎每一个文档中，并且几乎可以与任何词共现。
+
+### 6.8.2 TopicRNN模型
+#### 模型
+- TopicRNN是一个生成模型，对于文本中包含的词 $y_{1:T}$：
+    - 从一个均匀分布生成话题向量 $\theta\sim\mathcal{N}(\mathbf{0},\mathbf{1})$；
+    - 给定词 $y_{1:t-1}$，对于文本中第 $t$ 个词 $y_t$：
+        - 计算隐藏状态 $h_t=f_W(x_t,h_{t-1})$，其中我们令 $x_t{\triangleq}y_{t-1}$；
+        - 从伯努利分布中生成停用词指示物 $l_t\sim{\rm{Bernoulli}}(\sigma(\Gamma^{\top}h_t))$，$\sigma$ 是sigmoid函数；
+        - 生成单词 $y_t{\sim}p(y_t|h_t,\theta,l_t,B)$，其中：
+        $$p(y_t=i|h_t,\theta,l_t,B)\propto{\rm{exp}}(v_i^{\top}h_t+(1-l_t)b_i^{\top}\theta)$$
+- 停用词指示物 $l_t$ 控制 $\theta$ 对输出的影响。如果 $l_t=1$，说明 $y_t$ 是一个停用词，$\theta$ 对输出没有影响。
+- 我们选择使用主题向量作为偏置而不是将其传递到RNN的隐藏状态的主要原因是，它使我们能够清晰地分离全局语义和局部动力的贡献。全局语义来自于排除停用词时有意义的主题。然而这些停用词是语言模型的局部动力学所需要的。因此，我们通过停用词的二元决策模型来实现这种全局与局部的分离。
+- 展开的模型结构如下图：
+
+![](./img/6.8.1TopicRNN.png ':size=60%')
+- 我们用 $\Theta=\{\Gamma,V,B,W,W_c\}$ 来表示所有的模型参数，$W_c$ 是推断网络的参数(后面会介绍)。词序列为 $y_{1:T}$，停用词指示物为 $l_{1:T}$，对数边际似然目标函数为：
+$${\rm{log}}p(y_{1:T},l_{1:T}|h_t)={\rm{log}}{\int}p(\theta)\prod\limits_{t=1}^Tp(y_t|h_t,l_t,\theta)p(l_t|h_t)d\theta$$
+
+#### 模型推断
+- 直接优化目标函数是困难的，我们使用变分推断来逼近这个边际函数。令 $q(\theta)$ 是 $\theta$ 上的变分分布。证据下界ELBO为：
+$$\begin{align*}
+\mathcal{L}(y_{1:T},l_{1:T}|q(\theta),\Theta)&\triangleq\mathbb{E}_{q(\theta)}\left[\sum\limits_{t=1}^T{\rm{log}}p(y_t|h_t,l_t,\theta)+{\rm{log}}p(l_t|h_t)+{\rm{log}}p(\theta)-{\rm{log}}q(\theta)\right]\\
+&\leq{\rm{log}}p(y_{1:T},l_{1:T}|h_t,\Theta)
+\end{align*}$$
+- 根据变分自编码器技术，我们选择 $q(\theta)$ 的形式作为推理网络。令 $X_c\in\mathcal{N}_+^{|V_c|}$ 是不包括停用词的 $y_{1:T}$ 的词频表示，$V_c$ 是不包括停用词的词汇表大小。
+- 变分自编码推断网络 $q(\theta|X_c,W_c)$ 将 $X_c$ 映到一个 $K$ 维隐变量空间中，具体为：
+$$\begin{align*}
+q(\theta|X_c,W_c)&=\mathcal{N}(\theta;\mu(X_c),{\rm{diag}}(\sigma^2(X_c)))\\
+\mu(X_c)&=W_1g(X_c)+a_1\\
+{\rm{log}}\sigma(X_c)&=W_2g(X_c)+a_2
+\end{align*}$$
+其中 $g(\cdot)$ 表示前馈神经网络，权重矩阵 $W_1,W_2$ 和偏置项 $a_1,a_2$ 在文档中共享参数。每个文档有其自己的 $\mu(X_c)$ 和 $\sigma(X_c)$，服从分布 $q(\theta|X_c)$。
+- 推断网络输出一个分布作为语义信息的汇总，训练中使用Adam算法联合优化并更新参数，我们从 $q(\theta|X_c)$ 中随机采样，并使用重参数化技巧。具体网络见下图：
+
+![](./img/6.8.2TopicRNN.png ':size=60%')
+
+#### 生成序列文本
+- 给定词序列 $y_{1:t-1}$，我们有 $q(\theta|X_c)$ 的一个初始估计。为了生成下一个词 $y_t$，我们在线计算其概率分布。我们选择 $\theta$ 作为当前分布 $q(\theta|X_c)$ 的均值的点估计 $\^{\theta}$。
+- 边缘化停用词指示物 $l_t$，$y_t$ 的逼近分布为：
+$$p(y_t|y_{1:t-1})\approx\sum\limits_{l_t}p(y_t|h_t,\^{\theta},l_t)p(l_t|h_t)$$
+- 预测词 $y_t$ 就是来自这个预测分布的样本。如果 $y_t$ 不是停用词，我们通过将 $y_t$ 加入到 $X_c$ 来更新 $q(\theta|X_c)$。然而，在每个单词预测之后更新 $q(\theta|X_c)$ 是昂贵的，所以我们使用了一个滑动窗口。
+
+#### 模型复杂度
+- TopicRNN的算法复杂度为 $O(H{\times}H+H{\times}(C+K)+W_c)$，其中 $H$ 是RNN隐藏层的大小，$C$ 是词汇表大小，$K$ 是话题向量的维度，$W_c$ 是推断网络的参数个数。
 
 ## 6.9 2017- Miyato et al.
+- 半监督文本分类的对抗训练方法</br>
+(Adversarial Training Methods for Semi-Supervised Text Classification)
 
+### 6.9.1 模型
+- 我们记 $T$ 个单词的序列为 $\{w^{(t)}|t=1,\cdots,T\}$，对应的目标为 $y$。为了将离散的单词变为连续的向量，我们定义词嵌入矩阵 $V\in\mathbb{R}^{(K+1){\times}D}$，其中 $K$ 是词汇表的单词数，矩阵的每一行 $v_i$ 对应于第 $i$ 个单词的词嵌入。第 $K+1$ 个词嵌入为end of sequence的token，记为 $v_{eos}$。
+- 我们使用一个基于LSTM的神经网络模型，在时间步 $t$ 的输入是离散的单词 $w^{(t)}$，对应的词嵌入为 $v^{(t)}$。如下图：
 
-## 6.10 2020-RNN-Capsule
+![](./img/6.9.1Miyato%20et%20al..png ':size=60%')
+- 我们使用双向LSTM，将结果concat到一起进行预测。
+- 在对抗和虚拟对抗训练中，我们训练分类器使其对嵌入的扰动具有鲁棒性，如下图：
+
+![](./img/6.9.2Miyato%20et%20al..png ':size=60%')
+- 为了防止具有大范数的嵌入使扰动变得不重要，我们通过下式归一化向量 $v_k$，记为 $\bar{v}_k$：
+$$\bar{v}_k=\frac{v_k-{\rm{E}}(v)}{\sqrt{{\rm{Var}}(v)}},{\quad}{\rm{E}}(v)=\sum\limits_{j=1}^Kf_jv_j,{\rm{Var}}(v)=\sum\limits_{j=1}^Kf_j(v_j-{\rm{E}}(v))^2$$
+其中 $f_i$ 是第 $i$ 个单词在所有单词中的频率。
+
+### 6.9.2 对抗和虚拟对抗训练
+#### 对抗训练
+- 记 $x$ 为输入，$\theta$ 是分类器的参数，对抗训练将下述的项加入到损失函数中：
+$$-{\rm{log}}p(y|x+r_{\rm{adv}};\theta)$$
+其中 $r_{\rm{adv}}=\mathop{\rm{argmin}}\limits_{r,\|r\|\leq\epsilon}{\rm{log}}p(y|x+r;\^{\theta})$，$r$ 是扰动项，$\^{\theta}$ 是当前分类器参数的不变的拷贝集合。使用拷贝而不是 $\theta$ 说明不使用反向传播算法传播梯度。
+- 在训练的每一步，我们都识别出当前模型 $p(y|x;\^{\theta})$ 在等式中的最坏情况扰动 $r_{\rm{adv}}$，并通过argmin来训练模型对这些扰动的鲁棒性。然而，关于 $r$ 的精确极小化是困难的。我们使用以下逼近式：
+$$r_{\rm{adv}}=-{\epsilon}g/\|g\|_2,{\quad}g=\nabla_x{\rm{log}}p(y|x;\^{\theta})$$
+
+#### 虚拟对抗训练
+- 虚拟对抗训练与对抗训练类似，是一种正则化方法。目标函数如下：
+$${\rm{KL}}[p(\cdot|x;\^{\theta})\|p(\cdot|x+r_{{\rm{v}}\text{-}{\rm{adv}}};\theta)]$$
+$$r_{{\rm{v}}\text{-}{\rm{adv}}}=\mathop{\rm{argmax}}\limits_{r,\|r\|\leq\epsilon}{\rm{KL}}[p(\cdot|x;\^{\theta})\|p(\cdot|x+r;\^{\theta})]$$
+- 与对抗扰动最大的区别是，式中不需要真实标签 $y$，因此可以应用于半监督学习。
+
+#### 词嵌入扰动
+- 我们在词嵌入上进行对抗扰动，而不是直接在输入上进行。我们将词嵌入的concatenation $[\bar{v}^{(1)},\bar{v}^{(2)},\cdots,\bar{v}^{(T)}]$ 记为 $s$，关于 $y$ 的条件概率为 $p(y|s;\theta)$。
+- 然后我们在 $s$ 上定义对抗扰动为：
+$$r_{\rm{adv}}=-{\epsilon}g/\|g\|_2,{\quad}g=\nabla_s{\rm{log}}p(y|s;\^{\theta})$$
+- 为了使上式更具鲁棒性，我们定义对抗损失为：
+$$L_{\rm{adv}}(\theta)=-\frac{1}{N}\sum\limits_{n=1}^N{\rm{log}}p(y_n|s_n+r_{{\rm{adv}},n};\theta)$$
+其中 $N$ 是有标签样本数。
+- 在虚拟对抗训练中我们计算下列逼近式：
+$$r_{{\rm{v}}\text{-}{\rm{adv}}}={\epsilon}g/\|g\|_2,{\quad}g=\nabla_{s+d}{\rm{KL}}[p(\cdot|s;\^{\theta})\|p(\cdot|s+d;\^{\theta})]$$
+其中 $d$ 是一个 $TD$ 维的小随机向量，逼近式对应于2阶泰勒展开。
+- 虚拟对抗损失函数定义为：
+$$L_{{\rm{v}}\text{-}{\rm{adv}}}(\theta)=\frac{1}{N^\prime}\sum\limits_{n^\prime=1}^{N^\prime}{\rm{KL}}[p(\cdot|s_{n^\prime};\^{\theta})\|p(\cdot|s_{n^\prime}+r_{{\rm{v}}\text{-}{\rm{adv}},n^\prime};\theta)]$$
+其中 $N^\prime$ 是有标签和无标签样本的总数。
