@@ -251,10 +251,151 @@ $$h_t=o_t{\odot}{\rm{tanh}}(c_t)$$
 
 
 ## 7.4 2017-Lin et al
+- 一个结构化的自注意力句子嵌入</br>
+(a Structured Self-Attentive Sentence Embedding)
 
-## 7.5 2018-SCM
+### 7.4.1 模型结构
+- 模型由两部分组成。一部分是双向LSTM，另一部分是自注意力机制。
+- 假定我们有一个句子序列，有 $n$ 个tokens，第 $i$ 个词的词嵌入记为 $w_i$，则句子嵌入为一个二维矩阵 $S$：
+$$S=(w_1,w_2,\cdots,w_n)$$
+- 我们使用双向LSTM得到句子的特征：
+$$\begin{align*}
+\mathop{h_t}\limits^{\rightarrow}&=\mathop{\rm{LSTM}}\limits^{\longrightarrow}(w_t,\mathop{h_{t-1}}\limits^{\longrightarrow})\\
+\mathop{h_t}\limits^{\leftarrow}&=\mathop{\rm{LSTM}}\limits^{\longleftarrow}(w_t,\mathop{h_{t-1}}\limits^{\longleftarrow})
+\end{align*}$$
+- concat双向特征得到隐藏状态 $h_t$。所有的 $h_t$ 合并为一个特征图：
+$$H=(h_1,h_2,\cdots,h_n)$$
+- 将 $H$ 作为注意力机制的输入，通过下式得到一个权重向量 $a$：
+$$a={\rm{softmax}}(w_{s_2}{\rm{tanh}}(W_{s_1}H^\top))$$
+其中 $W_{s_1}$ 是一个 $d_a{\times}n$ 维的权重矩阵，$w_{s_2}$ 是一个 $d_a$ 维的权重向量，$d_a$ 是一个超参数。得到的 $a$ 是一个 $n$ 维向量。
+- 通过权重和得到输入序列的向量表示：
+$$m={\sum}aH^\top$$
+- 通过多跳注意力机制来捕获长句子中的多个重要部分，我们将 $w_{s_2}$ 扩展为一个 $r{\times}d_a$ 维的矩阵，记为 $W_{s_2}$，因此我们通过下式得到一个权重矩阵 $A$：
+$$A={\rm{softmax}}(W_{s_2}{\rm{tanh}}(W_{s_1}H^\top))$$
+其中 ${\rm{softmax}}$ 沿着输入的第二维进行。我们可以将上式看为一个具有 $d_a$ 个隐藏单元的2层的MLP，参数为 $\{W_{s_2},W_{s_1}\}$。
+- 嵌入向量 $m$ 变为一个 $r{\times}n$ 维的嵌入矩阵 $M$，具体计算为：
+$$M=AH$$
+
+### 7.4.2 惩罚项
+- 如果注意力机制总是为所有 $r$ 跳提供相似的求和权重，嵌入矩阵 $M$ 可能会出现冗余问题。因此，我们需要一个惩罚项来鼓励不同注意力跳数的求和权重向量的多样性。
+- 评价多样性的最好方法肯定是KL散度，但实践中并不稳定，我们猜测是因为需要优化多个KL散度的问题，在优化矩阵 $A$ 时出现很多0值使训练不稳定。另一方面，我们希望每一行关注语义的一个方面，但KL散度不能做到这一点。
+- 为此我们引入一个新的惩罚项：
+$$P=\|(AA^\top-I)\|_F^2$$
+其中 $\|\cdot\|_F$ 是矩阵的Frobenius norm。与L2正则项类似，我们对其加上权重系数 $\lambda$ 然后与原始loss合一起来优化。
+
+
+## 7.5 2018-SGM
+- 多标签分类的序列生成模型</br>
+(SGM: Sequence Generation Model for Multi-Label Classification)
+
+### 7.5.1 模型概述
+- 给定 $L$ 个标签 $\mathcal{L}=\{l_1,l_2,\cdots,l_L\}$，包含 $m$ 个单词的文本序列 $x$。任务是指定一个包含 $n$ 个标签的 $\mathcal{L}$ 的子集 $y$。
+- 与传统的单标签分类中每个样本只分配一个标签不同，多标签分类(MLC)任务中的每个样本可以有多个标签。从序列生成的角度来看，MLC任务可以通过最大化条件概率 $p(y|x)$ 来寻找最优标签序列 $y^*$，其计算公式如下：
+$$p(y|x)=\prod\limits_{i=1}^np(y_i|y_1,y_2,\cdots,y_{i-1},x)$$
+- 模型如图所示：
+
+![](./img/7.5.1SGM.png ':size=100%')
+- 首先，我们根据标签在训练集中出现的频率对每个样本的标签序列进行排序。此外，在标签序列的头尾分别添加 $bos$ 和 $eos$ 符号。
+- 文本序列 $x$ 被编码到隐藏状态，在时间步 $t$ 通过注意力机制聚合为上下文向量 $c_t$。
+- 解码器将上下文向量 $c_t$ 以及解码器的最后一个隐藏状态 $s_{t-1}$ 和嵌入向量 $g(y_{t-1})$ 作为输入，在时间步 $t$ 得到隐藏状态 $s_t$。其中，$y_{t-1}$ 为 $t-1$ 时刻标签空间 $\mathcal{L}$ 上的预测概率分布。
+- 函数 $g$ 以 $y_{t-1}$ 为输入，产生嵌入向量并传递给解码器。
+- 最后，利用掩码softmax层输出概率分布 $y_t$。
+
+### 7.5.2 序列生成
+- 整个序列生成模型由具有注意力机制的编码器和解码器组成。
+#### 编码器
+- 令 $(w_1,w_2,\cdots,w_m)$ 是具有 $m$ 个单词的句子，其中 $w_i$ 是第 $i$ 个单词的独热表示。
+- 我们首先通过一个嵌入矩阵 $E\in\mathbb{R}^{k{\times}|\mathcal{V}|}$ 将 $w_i$ 变为一组稠密嵌入向量 $x_i$，其中 $|\mathcal{V}|$ 是词汇表的大小，$k$ 是嵌入向量的维度。
+- 我们使用双向LSTM得到双向特征：
+$$\begin{align*}
+\mathop{h_i}\limits^{\rightarrow}&=\mathop{\rm{LSTM}}\limits^{\longrightarrow}(\mathop{h_{i-1}}\limits^{\longrightarrow},x_i)\\
+\mathop{h_i}\limits^{\leftarrow}&=\mathop{\rm{LSTM}}\limits^{\longleftarrow}(\mathop{h_{i+1}}\limits^{\longleftarrow},x_i)
+\end{align*}$$
+- 通过concat操作得到最终的特征：
+$$h_i=[\mathop{h_i}\limits^{\rightarrow};\mathop{h_i}\limits^{\leftarrow}]$$
+
+#### 注意力机制
+- 当模型预测不同的标签时，并不是所有的文本词都做出相同的贡献。注意力机制通过关注文本序列的不同部分并聚合这些信息词的隐藏表示来产生上下文向量。
+- 在时间步 $t$ 通过下式为第 $i$ 个单词分配权重 $\alpha_{ti}$：
+$$\begin{align*}
+e_{ti}&=v_a^{\top}{\rm{tanh}}(W_as_t+U_ah_i)\\
+\alpha_{ti}&=\frac{{\rm{exp}}(e_{ti})}{\sum_{j=1}^m{\rm{exp}}(e_{tj})}
+\end{align*}$$
+其中 $W_a,U_a,v_a$ 是权重参数，$s_t$ 是解码器在时间步 $t$ 的当前隐藏状态。
+- 最后传入解码器的文本向量 $c_t$ 为：
+$$c_t=\sum\limits_{i=1}^m\alpha_{ti}h_i$$
+
+#### 解码器
+- 解码器在时间步 $t$ 的隐藏状态 $s_t$ 计算如下： 
+$$s_t={\rm{LSTM}}(s_{t-1},[g(y_{t-1});c_{t-1}])$$
+其中 $[g(y_{t-1});c_{t-1}]$ 是指将 $g(y_{t-1})$ 和 $c_{t-1}$ concat起来。
+- $g(y_{t-1})$ 是在分布 $y_{t-1}$ 下概率最大的标签嵌入，$y_{t-1}$ 是在时间步 $t-1$ 时的标签空间 $\mathcal{L}$ 上的概率分布，具体由下式计算：
+$$\begin{align*}
+o_t&=W_of(W_ds_t+V_dc_t)\\
+y_t&={\rm{softmax}}(o_t+I_t)
+\end{align*}$$
+其中 $W_o,W_d,V_d$ 是权重参数，$f$ 是一个非线性激活函。
+- $I_t\in\mathbb{R}^L$ 是掩码向量，用于防止解码器预测重复标签数：
+$$(I_t)_i=\left\{\begin{array}{ll}
+-\infty &\text{if the label } l_i \text{ has been predicted at previous } t-1 \text{ time steps.}\\
+0 &\text{otherwise.}
+\end{array}\right.$$
+- 在训练阶段，损失函数为交叉熵损失函数。我们采用束搜索算法来寻找推断时排名靠前的预测路径。
+
+### 7.5.3 全局嵌入
+- $t$ 步的解码器隐藏状态向量是贪心的求得的，通过分布 $y_{t-1}$ 下概率最大的标签嵌入求得。如果在时间步 $t$ 的预测是错误的，那么我们很可能会在接下来的时间步得到一系列错误的标签预测，这也被称为曝光偏差。
+- 实际上，前面所有时间步的信息都是有价值的，所以我们应该考虑所有的信息来缓解曝光偏差。
+- 基于此，我们提出了一种新的解码器结构。我们引入全局嵌入。
+- 令 $e$ 表示在分布 $y_{t-1}$ 下概率最大的标签嵌入，$\bar{e}$ 为 $t$ 时刻的加权平均嵌入：
+$$\bar{e}=\sum\limits_{i=1}^Ly_{t-1}^{(i)}e_i$$
+其中 $y_{t-1}^{(i)}$ 是 $y_{t-1}$ 的第 $i$ 个元素，$e_i$ 是第 $i$ 个标签的嵌入向量。
+- 时间步 $t$ 传入解码器的全局嵌入 $g(y_{t-1})$ 为：
+$$g(y_{t-1})=(1-H){\odot}e+H{\odot}\bar{e}$$
+其中 $H$ 是控制加权平均嵌入比例的变换门：
+$$H=W_1e+W_2\bar{e}$$
+其中 $W_1,W_2\in\mathbb{R}^{L{\times}L}$ 是权重矩阵。
+- 全局嵌入 $g(y_{t-1})$ 是原始嵌入和使用变换门 $H$ 的加权平均嵌入的优化组合，可以自动确定每个维度上的组合因子。通过考虑每个标签出现的概率，该模型能够减少上一时间步错误预测造成的损失。这使得模型能够更准确地预测标签序列。
 
 ## 7.6 2018-ELMo
+- 深度语境化词语表示</br>
+(Deep contextualized word representations)
+- ELMo(Embeddings from Language Models)词表示是整个输入句子的函数。我们通过4个部分来介绍。
+### 7.6.1 双向语言模型
+- 给定 $N$ 个tokens的序列 $(t_1,t_2,\cdots,t_N)$，前向语言模型通过建模 $t_k$ 的概率来计算序列的概率：
+$$p(t_1,t_2,\cdots,t_N)=\prod\limits_{k=1}^Np(t_k|t_1,t_2,\cdots,t_{k-1})$$
+- 最近的神经语言模型，计算一个与上下文无关的token表示 $x_k^{LM}$，然后放入 $L$ 层前向LSTMs网络中。在每个位置 $k$，每个LSTM层输出一个上下文独立的表示 $\mathop{h_{k,j}^{LM}}\limits^{\longrightarrow}$，其中 $j=1,\cdots,L$。最上层的输出放入softmax分类器中来预测下一个token $t_{k+1}$。
+- 一个后向LM与前向类似，只是逆序文本序列，通过未来的文本预测之前的token：
+$$p(t_1,t_2,\cdots,t_N)=\prod\limits_{k=1}^Np(t_k|t_{k+1},t_{k+2},\cdots,t_N)$$
+- 双向语言模型通过联合前向和后向过程，通过最大化对数似然来训练：
+$$\sum\limits_{k=1}^N({\rm{log}}p(t_k|t_1,\cdots,t_{k-1};\Theta_x,{\mathop{\Theta}\limits^{\rightarrow}}_{\rm{LSTM}},\Theta_s)+{\rm{log}}p(t_k|t_{k+1},\cdots,t_N;\Theta_x,{\mathop{\Theta}\limits^{\leftarrow}}_{\rm{LSTM}},\Theta_s))$$
+其中 $\Theta_x$ 是token表示的参数，$\Theta_s$ 是softmax层参数，我们在前向后向过程中共享这两部分参数。
+
+### 7.6.2 ELMo
+- 对于每个token $t_k$，一个 $L$ 层biLM计算了 $2L+1$ 个表示：
+$$\begin{align*}
+R_k&=\{x_k^{LM},\mathop{h_{k,j}^{LM}}\limits^{\longrightarrow},\mathop{h_{k,j}^{LM}}\limits^{\longleftarrow}|j=1,\cdots,L\}\\
+&=\{h_{k,j}^{LM}|j=0,\cdots,L\}
+\end{align*}$$
+其中 $h_{k,j}^{LM}=[\mathop{h_{k,j}^{LM}}\limits^{\longrightarrow};\mathop{h_{k,j}^{LM}}\limits^{\longleftarrow}]$。
+- ELMo将这些层的表示变为一个向量：
+$${\rm{ELMo}}_k=E(R_k;\Theta_c)$$
+    - 最简单的情况，是用最后一层的输出来作为向量：$E(R_k)=h_{k,L}^{LM}$。
+    - 更一般的，我们计算所有biLM层的特定任务权重：
+    $${\rm{ELMo}}_k^{task}=E(R_k;\Theta^{task})=\gamma^{task}\sum\limits_{j=0}^Ls_j^{task}h_{k,j}^{LM}$$
+    其中，$s^{task}$ 是softmax-normalized权重，$\gamma^{task}$ 是标量参数，允许模型对整个ELMo向量进行缩放。
+
+### 7.6.3 使用biLMs进行有监督的NLP任务
+- 给定一个预训练的biLM和一个目标NLP任务的监督架构，使用biLM改进任务模型是一个简单的过程。我们运行biLM并记录每个单词的所有层表示。然后，我们让任务模型学习这些表示的线性组合。
+- 首先考虑监督模型的最低层。多数监督NLP模型在最低层有一个共同的体系结构，使得我们能以一个统一的方式添加ELMo。
+- 给定tokens序列 $(t_1,\cdots,t_N)$，使用预训练的词嵌入和可选的基于字符的表示为每个token形成一个上下文无关的token表示 $x_k$。然后，使用双向RNNs、CNNs或前馈网络形成上下文敏感的表示 $h_k$。
+- 为了将ELMo添加到监督模型中，我们首先冻结biLM的权重，然后将ELMo向量与 $x_k$ concat起来得到 $[x_k;{\rm{ELMo}}_k^{task}]$，再放入任务模型中。
+- 另一些任务中，我们在任务模型后引入ELMo，将 $h_k$ 替换为 $[h_k;{\rm{ELMo}}_k^{task}]$。
+- 最后，Dropout操作是有效的。在损失中添加正则项 $\lambda\|w\|_2^2$ 也是有效的。
+
+### 7.6.4 预训练的双向语言模型架构
+- 最终模型使用 $L=2$ 个biLSTM层，包含4096个单元和512维投影，以及从第一层到第二层的残差连接。上下文不敏感的表示使用2048个字符的n-gram卷积滤波器，然后使用两个highway层和一个线性投影层，输出一个512维的表示。
+- 在1B的单词上训练10个epochs后，前向和后向平均困惑度为39.7，而前向CNN-BIG-LSTM为30.0。总体而言，我们发现前后向困惑度近似相等，后向值略低。
+- 预训练后，biLM可以为任何任务计算表示。某些情况下，在特定领域的数据上微调biLM会导致困惑度的显著下降以及下游任务性能的增加。
 
 ## 7.7 2018-BiBloSA
 

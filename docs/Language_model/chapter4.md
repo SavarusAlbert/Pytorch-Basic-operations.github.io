@@ -38,7 +38,7 @@ $$y=b+Uh(w_{t-k},\cdots,w_{t+k};W,D)$$
 $$z=g(w{\in}X)=\frac{1}{|X|}\sum\limits_{w{\in}X}v_w$$
 通过softmax层得到估计概率：
 $$\^{y}={\rm{softmax}}(W_s{\cdot}z+b)$$
-其中 ${\rm{sofftmax}}(q)=\frac{{\rm{exp}}q}{\sum_{j=1}^k{\rm{exp}}q_j}$，$W_s$ 是一个 $k{\times}d$ 维的参数矩阵，$b$ 是偏置项。
+其中 ${\rm{softmax}}(q)=\frac{{\rm{exp}}q}{\sum_{j=1}^k{\rm{exp}}q_j}$，$W_s$ 是一个 $k{\times}d$ 维的参数矩阵，$b$ 是偏置项。
 - 我们通过最小化交叉熵损失来训练：
 $$l(\^{y})=\sum\limits_{p=1}^ky_p{\rm{log}}(\^{y}_p)$$
 
