@@ -37,6 +37,7 @@ Pytorch/Numpy/Pandas/Sklearn 学习笔记
         - CNN系列论文泛读
         - RNN系列论文泛读
         - Attention系列论文泛读
+        - Transformer系列论文泛读
 
 ## 学习资料
 - [深入浅出PyTorch](https://datawhalechina.github.io/thorough-pytorch/index.html)

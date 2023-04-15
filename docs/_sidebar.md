@@ -39,3 +39,4 @@
             - [CNN系列论文泛读](Language_model/chapter5.md)
             - [RNN系列论文泛读](Language_model/chapter6.md)
             - [Attention系列论文泛读](Language_model/chapter7.md)
+            - [Transformer系列论文泛读](Language_model/chapter8.md)

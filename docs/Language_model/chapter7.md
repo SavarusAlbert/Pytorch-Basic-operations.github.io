@@ -398,11 +398,421 @@ $${\rm{ELMo}}_k=E(R_k;\Theta_c)$$
 - 预训练后，biLM可以为任何任务计算表示。某些情况下，在特定领域的数据上微调biLM会导致困惑度的显著下降以及下游任务性能的增加。
 
 ## 7.7 2018-BiBloSA
+- 用于快速和高效的序列建模的双向块自注意力</br>
+(Bi-Directional Block Self-Attention for Fast and Memory-Efficient Sequence Modeling)
+### 7.7.1 背景知识
+#### 词嵌入
+- 给定tokens的序列 $w=[w_1,w_2,\cdots,w_n]\in\mathbb{R}^{N{\times}n}$，其中 $w_i$ 是独热向量，$N$ 是词汇表大小，$n$ 是序列长度。
+- 预训练词嵌入模型输入 $w$，输出一个低维向量 $x=[x_1,x_2,\cdots,x_n]\in\mathbb{R}^{d_e{\times}n}$，过程由下式给出：
+$$x=W^{(e)}w$$
+其中 $W^{(e)}\in\mathbb{R}^{d_e{\times}N}$ 是权重矩阵，在训练中可以进行微调。
+
+#### Vanilla Attention和多维注意力
+###### Vanilla Attention：
+- 给定由词嵌入组成的序列 $x=[x_1,x_2,\cdots,x_n]\in\mathbb{R}^{d_e{\times}n}$，以及一个query的向量表示 $q\in\mathbb{R}^{d_q}$。Vanilla Attention使用概率函数 $f(x_i,q)$ 来计算 $q$ 和 $x_i$ 之间的注意力分数。然后通过softmax将其变为概率分布 $p(z|x,q)$，$p(z=i|x,q)$ 越大说明 $x_i$ 对于 $q$ 越重要，整个过程如下：
+$$\begin{align*}
+&a=[f(x_i,q)]_{i=1}^n\\
+&p(z|x,q)={\rm{softmax}}(a)
+\end{align*}$$
+- 输出s是对一个token按其重要性采样的期望：
+$$s=\sum\limits_{i=1}^np(z=i|x,q)x_i=\mathbb{E}_{i{\sim}p(z|x,q)}(x_i)$$
+- 加性注意力和乘性注意力是两种不同的注意力机制，不同点在于函数 $f(x_i,q)$ 的选择。
+    - 乘性注意力使用cosine相似性：
+    $$f(x_i,q)=\left<W^{(1)}x_i,W^{(2)}q\right>$$
+    其中 $W^{(1)}\in\mathbb{R}^{d_h{\times}d_e},W^{(2)}\in\mathbb{R}^{d_h{\times}d_q}$ 是可学习的参数，
+    - 加性注意力定义为：
+    $$f(x_i,q)=w^{\top}\sigma(W^{(1)}x_i+W^{(2)}q+b^{(1)})+b$$
+    其中 $w\in\mathbb{R}^{d_h}$，$b^{(1)}$ 和 $b$ 是偏置项，$\sigma(\cdot)$ 是激活函数。
+- 加性注意力通常表现更好，但时间和内存需求更昂贵。
+###### 多维注意力
+- 与Vanilla Attention不同的是，多维注意力的分数是针对每个特征计算的，token对的分数是一个向量而不是一个标量，因此对某些特征的分数可能较大，而对另一些特征的分数可能较小。
+- 多维注意力有 $d_e$ 个指示器 $z_1,\cdots,z_{d_e}$，每个指示器通过对特征对应的分数进行softmax得到一个概率分布，即对每个token $i$ 的特征 $k$，我们有：
+$$P_{ki}{\triangleq}p(z_k=i|x,q)$$ 
+- $P_{ki}$ 越大说明token $i$ 的特征 $k$ 对 $q$ 更重要。
+- 输出的多维注意力为：
+$$s=\left[\sum\limits_{i=1}^nP_{ki}x_{ki}\right]_{k=1}^{d_e}=[\mathbb{E}_{i{\sim}p(z_k|x,q)}(x_{ki})]_{k=1}^{d_e}$$
+简单起见，我们可以省略角标 $k$。方程重写为：
+$$s=\sum\limits_{i=1}^nP_{{\cdot}i}{\odot}x_i$$
+其中 $P_{{\cdot}i}$ 是之前定义的加性注意力，其中的权重 $w^{\top}$ 由权重矩阵 $W\in\mathbb{R}^{d_h{\times}d_e}$ 代替。
+
+#### 两类自注意力
+###### token2token自注意力
+- 通过探索来自同一序列x的两个token $x_i$ 和 $x_j$ 之间的依赖关系，来生成上下文感知的表示。
+- 具体地，加性注意力的式子改为：
+$$f(x_i,x_j)=W^{\top}\sigma(W^{(1)}x_i+W^{(2)}x_j+b^{(1)})+b$$
+- 多维注意力中，每个输入token $x_j$ 与概率矩阵 $P^j$ 求相关性，所以有：
+$$P_{ki}^j{\triangleq}p(z_k=i|x,x_j)$$
+- $x_j$ 的输出表示为：
+$$s_j=\sum\limits_{i=1}^nP_{{\cdot}i}^j{\odot}x_i$$
+最后的token2token自注意力输出为：
+$$s=[s_1,s_2,\cdots,s_n]$$
+
+###### source2token自注意力
+- 每个token对整个句子的相关性也是有效的。
+- 为此，我们移除加性注意力中的 $q$ 一项：
+$$f(x_i)=W^{\top}\sigma(W^{(1)}x_i+b^{(1)})+b$$
+- 概率矩阵定义为：
+$$P_{ki}{\triangleq}p(z_k=i|x)$$
+最后的source2token自注意力输出为：
+$$s=\sum\limits_{i=1}^nP_{{\cdot}i}{\odot}x_i$$
+
+#### 掩码自注意力
+- 在token2token自注意力中，由于分数是对称的，因此很难编码时序信息。掩码自注意力使用一个mask矩阵 $M\in\mathbb{R}^{n{\times}n}$ 应用于token2token中的分数矩阵：
+$$f(x_i,x_j)=c\cdot{\rm{tanh}}\left([W^{(1)}x_i+W^{(2)}x_j+b^{(1)}]/c\right)+M_{ij}\mathbf{1}$$
+其中偏置项 $b$ 用常数向量 $M_{ij}\mathbf{1}$ 替代，$W$ 由一个标量 $c$ 替代，降低了参数量，激活函数使用 ${\rm{tanh}}(\cdot/c)$，$W^{(1)}\in\mathbb{R}^{d_e{\times}d_e},W^{(2)}\in\mathbb{R}^{d_e{\times}d_q}$
+- 后续计算都类似，我们用 $s=g^m(x,M)$ 来表示masked自注意力，$s=[s_1,s_2,\cdots,s_n]$ 作为输出。具体过程见下图：
+
+![](./img/7.7.1BiBloSA.png ':size=80%')
+- 为了对双向时序信息进行建模，将前向掩码 $M^{fw}$ 和后向掩码 $M^{bw}$ 分别代入到式中，从而产生前向和后向自注意力。这两个掩码定义为：
+$$M_{ij}^{fw}=\left\{\begin{array}{ll}
+0, & i<j\\
+-\infty, & \text{otherwise}
+\end{array}\right.{\quad}M_{ij}^{bw}=\left\{\begin{array}{ll}
+0, & i>j\\
+-\infty, & \text{otherwise}
+\end{array}\right.$$
+前后向自注意力输出记为 $s^{fw}=g^m(x,M^{fw})$ 和 $s^{bw}=g^m(x,M^{bw})$。
+
+### 7.7.2 模型
+#### 掩码块自注意力
+- 掩码块自注意力(mBloSA)自下而上分为3个部分：块内自注意力；块间自注意力；上下文融合。具体见下图：
+
+![](./img/7.7.2BiBloSA.png ':size=80%')
+###### 块内自注意力
+- 我们首先将输入序列划分为长度为 $r$ 的 $m$ 个块：
+$$[x^l]_{l=1}^m=[x^1,x^2,\cdots,x^m]$$
+其中：
+$$x^1=[x_1,x_2,\cdots,x_r],x^2=[x_{r+1},x_{r+2},\cdots,x_{2r}],\cdots,x^m=[x_{n-r+1},x_{n-r+2},\cdots,x_n]$$
+如果长度不足可以进行padding操作。
+- 使用共享参数的masked自注意力 $g^m(\cdot,M)$：
+$$h^l=g^m(x^l,M),{\quad}l=1,2,\cdots,m$$
+其目标是捕获每个块内部的局部上下文依赖关系。
+- 与 $x^l$ 类似，第 $l$ 个块中的tokens的输出表示为：
+$$h^l=[h_{r(l-1)+1},h_{r(l-1)+2},\cdots,h_{r×l}]$$
+注意，块长 $r$ 为超参数，且 $m=n/r$。
+
+###### 块间自注意力
+- 为了生成每个块的向量表示 $v^l$，对块内自注意力的输出 $h^l$ 应用source2token自注意力 $g^{s2t}(\cdot)$：
+$$v^l=g^{s2t}(h^l),{\quad}l=1,2,\cdots,m$$
+我们在不同块上共享参数。
+- 这为我们提供了一个块级别的局部上下文表示序列 $v=[v^1,v^2,\cdots,v^m]$。块间自注意力再对 $v$ 施加一个掩码自注意力，以捕获块间的长范围/全局依赖关系：
+$$o=g^m(v,M)$$
+- 为了在块级别上结合局部和全局上下文特征，使用一个门来动态合并掩码自注意力的输入和输出。这与LSTM中的门类似。门的输出序列 $e=[e_1,\cdots,e_m]$ 由下式计算：
+$$\begin{align*}
+G&={\rm{sigmoid}}(W^{(g1)}o+W^{(g2)}v+b^{(g)})\\
+e&=G{\odot}o+(1-G){\odot}v
+\end{align*}$$
+
+###### 上下文融合
+- 给定块级别的长范围上下文表示 $e=[e_1,\cdots,e_m]\in\mathbb{R}^{d_e×m}$，重复 $r$ 次 $e_l$ 得到 $e^l=[e_l,e_l,\cdots,e_l]$，定义 $E\triangleq[e^l]_{l=1}^m\in\mathbb{R}^{d_e{\times}n}$ 为上下文特征。
+- 现在，我们有词嵌入的输入序列 $x$，块内自注意力产生的局部上下文特征 $h$，块间自注意力产生的长范围/全局上下文特征 $E$。使用特征融合门对它们进行组合，生成所有tokens的最终上下文感知表示：
+$$\begin{align*}
+F&=\sigma\left(W^{(f1)}[x;h;E]+b^{(f1)}\right)\\
+G&={\rm{sigmoid}}\left(W^{(f2)}[x;h;E]+b^{(f2)}\right)\\
+u&=G{\odot}F+(1-G){\odot}x
+\end{align*}$$
+其中 $\sigma(\cdot)$ 是一个激活函数，$u=[u_1,u_2,\cdots,u_n]\in\mathbb{R}^{d_e{\times}n}$ 是mBloSA的输出，它由 $n$ 个tokens的上下文感知表示组成。
+
+#### 双向块自注意力网络
+- 我们提出了一种以mBloSA为主要组成部分的序列编码模型"双向块自注意力网络(Bi-BloSAN)"。其架构如图所示：
+
+![](./img/7.7.3BiBloSA.png ':size=80%')
+- 在Bi-BloSAN中，tokens嵌入前使用了两个全连接层。它们的输出分别放入两个mBloSA模块中，一个使用前向掩码 $M^{fw}$，另一个使用后向掩码 $M^{bw}$。将它们的输出 $u^{fw}$ 和 $u^{bw}$ concat起来：
+$$u^{bi}=[u^{fw};u^{bw}]\in\mathbb{R}^{2d_e{\times}n}$$
+- 具有输入 $x$ 和输出 $u^{bi}$ 的Bi-BloSAN称为"Bi-BloSA"。为了获得序列编码，再通过一个source2token自注意力层将 $u^{bi}$ 转化为向量表示 $s$，得到完整的Bi-BloSAN。
+
+
 
 ## 7.8 2019-AttentionXML
+- 面向高性能极多标签文本分类的基于标签树的注意力感知深度模型</br>
+(Label Tree-based Attention-Aware Deep Model for High-Performance Extreme Multi-Label Text Classification)
+### 7.8.1 前瞻
+- AttentionXML的主要步骤为：
+    - (1)构建浅而宽的PLT(图中(a)(b))；
+    - (2)对于给定的已构建PLT的每个级别 $d(d>0)$，使用BiLSTM和多标签注意力训练注意力感知的深度模型${\rm{AttentionXML}}_d$(图中(c))。如下图：
+
+![](./img/7.8.1AttentionXML.png ':size=100%')
+
+### 7.8.2 构建浅而宽的PLT
+- PLT是一棵有 $L$ 个叶子的树，每个叶子对应一个原始标签。给定一个样本 $x$，我们为每个节点 $n$ 赋予一个标签 $z_n\in\{0,1\}$，表示节点 $n$ 的子树是否包含与该样本相关的叶子节点。
+- PLT估计每个节点的条件概率 $P(z_n|z_{Pa(n)}=1,x)$，每个节点 $n$ 的边际概率 $P(z_n=1|x)$ 可以通过概率的链式法则得到：
+$$P(z_n=1|x)=\prod\limits_{i{\in}Path(n)}P(z_i=1|z_{Pa(i)}=1,x)$$
+其中 $Pa(n)$ 是节点 $n$ 的父节点，$Path(n)$ 是从节点 $n$ 到根节点的路径上的所有节点的集合(包括根节点)。
+- 过高或过大的树都会损害性能。因此我们构建了一个浅和宽的PLT $T_H$。
+    - 首先，我们通过自顶向下的层次聚类构建一个初始的PLT $T_0$，具有较小的簇大小 $M$；
+    - 然后通过平衡 k-means(k=2) 将标签递归地划分为两个较小的簇，直到标签的数量小于 $M$；
+    - 然后将 $T_0$ 压缩为浅而宽PLT，记为 $T_H$，它是一棵高度为 $H$ 的 $K(=2^c)$ 路树。这种压缩操作类似于一些层次多类分类方法中的剪枝策略。我们首先选择叶子的所有父节点作为 $S_0$，然后进行 $H$ 次压缩操作，得到 $T_H$。压缩操作分为三个步骤，例如在 $T_{h-1}$ 上的第 $h$ 次压缩操作中：
+        - (1)选择第 $c$ 个祖先节点($h<H$)或根节点($h=H$)作为 $S_h$
+        - (2)删除 $S_{h-1}$ 和 $S_h$ 之间的节点
+        - (3)然后将 $S_h$ 中的节点重置为 $S_{h-1}$ 中对应节点的父节点。
+    - 最终得到一个浅而宽的树 $T_H$。实际中我们取 $M=K$，使得除根节点外的每个内部节点不超过 $K$ 个子节点。
+
+### 7.8.3 学习AttentionXML
+- 给定一个构建好的PLT，针对更深层次的节点训练深度模型非常困难，因为更深层次的节点具有较少的正样本。对所有不同层次的节点共同训练一个深度模型很难优化，效果也不好，对性能的提升也很少。
+- 因此，我们对AttentionXML进行逐层训练：
+    - (1)AttentionXML以自顶向下的方式为给定PLT的每层训练单个深度模型。对PLT的每层进行标记仍然是一个多标记分类问题。对于第一层的节点(根节点的孩子节点)，可以直接训练AttentionXML，记为 ${\rm{AttentionXML1}}_1$。
+    - (2)对于给定PLT的第 $d$ 层($d>1$)，${\rm{AttentionXML}}_d$ 仅由每个样本 $x$ 的候选 $g(x)$ 来训练。具体来说，我们按照 $z_n$ 对 $d-1$ 层节点进行排序(由正向到负向)，然后通过 ${\rm{AttentionXML}}_{d-1}$ 来预测它们的得分。我们将前 $C$ 个节点保留在 $d-1$ 层，并选择它们的子节点作为 $g(x)$。类似于一种额外的负采样，比仅使用正面的父节点能得到更精确的对数似然近似。
+    - (3)在预测时，对于第 $i$ 个样本，根据概率的链式法则可以很容易地计算第 $j$ 个标签的预测得分 $\^{y}_{ij}$。对于预测效率，我们使用束搜索：对于第 $d$ 层($d>1$)，我们只预测属于 $d-1$ 层的节点且预测得分排名前 $C$ 的节点的得分。
+
+### 7.8.4 注意力感知深度模型
+- AttentionXML的注意力感知深度模型包括5层(见上文图(c))：
+    - (1)词表示层；
+    - (2)双向Lstm层；
+    - (3)多标签注意力层；
+    - (4)全连接层；
+    - (5)输出层。
+#### 词表示层
+- AttentionXML的输入是长度为 $\^{T}$ 的原始标记文本。每个词由一个深层语义稠密向量表示，称为词嵌入。
+- 在实验中，我们使用预训练的300维GloVe词嵌入作为初始词表示。
+#### 双向LSTM层
+- RNN是一种具有记忆状态的处理序列输入的神经网络。传统的RNN在训练过程中存在梯度消失和爆炸的问题。长短期记忆网络(LSTM)就是为了解决这一问题而提出的。
+- 我们使用双向LSTM来捕获左边和右边的上下文，其中在每个时间步 $t$，输出 $\^{h}_t$ 由前向输出 $\mathop{h_t}\limits^{\rightarrow}$ 和后向输出 $\mathop{h_t}\limits^{\leftarrow}$ concat得到。
+#### 多标签注意力
+- 最近，神经网络中的注意力机制已成功用于许多NLP任务，如机器翻译、机器理解、关系抽取、语音识别等。
+- 在XMTC中，与每个标签最相关的上下文可以是不同的。AttentionXML通过多标签注意力机制计算每个标签的上下文向量 $\^{h}_i$ 的线性组合，以捕获文本的各种信息。
+- 具体来说，第 $j$ 个标签的多标签注意力层输出 $\^{m}_j\in\mathbb{R}^{2\^{N}}$ 由下式得到：
+$$\^{m}_j=\sum\limits_{i=1}^{\^{T}}\alpha_{ij}\^{h}_i,{\quad}\alpha_{ij}=\frac{{\rm{exp}}(\^{h}_i\^{w}_j)}{\sum_{t=1}^{\^{T}}{\rm{exp}}(\^{h}_t\^{w}_j)}$$
+其中 $\alpha_{ij}$ 是 $\^{h}_i$ 的正则化参数，$\^{w}_j\in\mathbb{R}^{2\^{N}}$ 是注意力参数。
+#### 全连接和输出层
+- AttentionXML有一个(或两个)全连接层和一个输出层。在全连接(和输出)层，所有的标签共享参数，来强调标签之间的注意力差异，同时可以很大程度上减少参数量，避免过拟合，保持模型规模小。
+#### 损失函数
+- AttentionXML采用二元交叉熵损失函数。由于每个实例的标签数量不同，我们不对多类分类中的预测概率进行归一化处理。
+#### AttentionXML参数初始化
+- 利用训练好的不带注意力层的 ${\rm{AttentionXML}}_{d-1}$ 的参数初始化 ${\rm{AttentionXML}}_d$($d>1$)的参数。
+- 这种初始化有助于深层次模型快速收敛，从而提高精度。
+#### 算法复杂度
+- 没有PLT的深度模型很难处理极端规模的数据集，因为多标签注意力机制的时间和空间复杂度很高。
+- 深度模型中的多标签注意力每次迭代需要 $\mathcal{O}(BL\^{N}\^{T})$ 的时间和 $\mathcal{O}(BL(\^{N}+\^{T}))$ 的空间，其中B为批次大小。
+- 对于非常大量的标签($L>100{\rm{k}}$)，时间开销巨大。也不能将整个模型保存在GPU有限的内存空间中。
+- 有PLT的AttentionXML的时间复杂度远小于没有PLT的AttentionXML，尽管我们需要训练 $H+1$ 个不同的深度模型。
+- ${\rm{AttentionXML}}_1$ 的标签大小仅为 $L/K^H$，远小于$L$。而且 ${\rm{AttentionXML}}_d$ ($d>1$)的候选标签数仅为 $C{\times}K$，同样远小于 $L$，因此即使在有限GPU内存的情况下也可以高效运行基于标签树的AttentionXML。
+
 
 ## 7.9 2019-HAPN
+- 少样本文本分类的层次注意力原型网络</br>
+(Hierarchical Attention Prototypical Networks for Few-Shot Text Classification)
+
+### 7.9.1 任务定义
+- 在少样本文本分类任务中，我们的目标是学习一个函数：
+$$G(D,S,x){\rightarrow}y$$
+其中 $D$ 是有标签的数据集，我们将其分为3个部分 $D_{train},D_{validation},D_{text}$，我们使用 $D_{train}$ 来优化参数，用 $D_{validation}$ 来挑选最优的超参数，用 $D_{text}$ 来评估模型。
+- 对于每个训练集部分，我们首先从 $D_{train}$ 中采样一个标签集 $\mathcal{L}$，然后使用 $\mathcal{L}$ 采样support set $S$ 和query set $Q$，最后将 $S$ 和 $Q$ 送入模型并最小化损失。
+- 如果 $\mathcal{L}$ 包含 $N$ 个不同的类，且 $S$ 的每个类包含 $K$ 个实例，那么我们称之为N-Way K-Shot学习。本文中我们考虑 $N=5\text{ or }10,K=5\text{ or }10$。
+- 精确来说，对给定的部分训练集，我们给定support set $S$：
+$$\begin{align*}
+S=&\{(x_1^1,l_1),(x_1^2,l_1),\cdots,(x_1^{n_1},l_1),\\
+&\cdots,\\
+&(x_m^1,l_m),(x_m^2,l_m),\cdots,(x_m^{n_m},l_m)\}
+\end{align*}$$
+其中 $l_1,l_2,\cdots,l_m\in\mathcal{L}$，每个类 $l_i\in\mathcal{L}$ 由 $n_i$ 个文本实例组成，$x_i^j$ 是属于类别 $l_i$ 的第 $j$ 个support实例，实例 $x_i^j$ 包括 $T_{i,j}$ 个单词 $\{w_1,w_2,\cdots,w_{T_{i,j}}\}$。
+- $x$ 是query set $Q$ 的一个无标签实例，$y\in\mathcal{L}$ 是由 $G$ 预测的标签输出。
+
+### 7.9.2 模型前瞻
+- 分层注意力原型网络的整体架构如图所示：
+
+![](./img/7.9.1HAPN.png ':size=80%')
+#### 实例编码器
+- support set或query set中的每个实例首先表示为一个向量。我们用一层CNN来实现。
+#### 分层注意力
+- 为了从模型得到更多的信息，我们使用分层注意力机制。
+- 特征层面的注意力增强或降低了不同特征在每个类中的重要性，单词层面的注意力突出了对实例有意义的重要单词，而实例级多交叉注意力可以提取对不同query实例有重要支持的实例，这三种注意力机制共同作用提高了模型的分类性能。
+#### 原型网络
+- 原型网络通过计算一个原型向量来作为每个类的表示，该向量是该类的嵌入实例的均值向量。我们比较所有原型向量和一个目标query向量之间的距离，然后将这个query分类到最近的一个。
+
+### 7.9.3 实例编码器
+- 实例编码器由两层组成：嵌入层和实例编码层。
+#### 嵌入层
+- 给定 $T$ 个单词的实例 $\{x_1,x_2,\cdots,x_T\}$，我们使用一个嵌入矩阵 $W_E$ 来得到嵌入向量：
+$$w_t=W_Ex_t$$
+其中 $w_t\in\mathbb{R}^d$。
+#### 编码层
+- 我们使用一个CNN来编码词嵌入，通过窗口大小为 $m$ 的卷积核来得到隐藏注释：
+$$h_t={\rm{CNN}}(w_{t-\frac{m-1}{2}},\cdots,w_{t-\frac{m+1}{2}})$$
+- 如果单词 $x_t$ 有一个位置嵌入 $p_t$，那么我们将它们concat起来得到：
+$$wp_t=[w_t{\oplus}p_t]$$
+$h_t$ 则变为：
+$$h_t={\rm{CNN}}(wp_{t-\frac{m-1}{2}},\cdots,wp_{t-\frac{m+1}{2}})$$
+- 然后，我们聚合所有的 $h_t$ 来得到实例上的表示：
+$$x=\{h_1,h_2,\cdots,h_t\}$$
+- 最后，我们将这两层定义为一个综合函数：
+$$x=g_{\theta}(x)$$
+其中 $\theta$ 是网络中可学习的参数。
+
+### 7.9.4 原型网络
+- 原型网络的基本思想是：使用一个原型向量 $c_i$ 作为类别 $l_i$ 的特征表示，每个原型向量通过平均support set上的所有嵌入实例来得到：
+$$c_i=\frac{1}{n_i}\sum\limits_{j=1}^{n_i}g_{\theta}(x_i^j)$$
+- 然后通过求目标query $q$ 和原型向量的距离，再放入softmax分类器，来得到一个概率分布：
+$$p_{\theta}(y=l_i|q)=\frac{{\rm{exp}}(-d(g_{\theta}(q),c_i))}{\sum_{l=1}^{|\mathcal{L}|}{\rm{exp}}(-d(g_{\theta}(q),c_l))}$$
+- 距离函数可以为平方欧式距离。
+
+### 7.9.5 分层注意力
+#### 特征层面注意力
+- 给定类别 $l_i$ 的support set $S_i\in\mathbb{R}^{n_i{\times}T{\times}d}$，作为实例编码器的输出：
+$$S_i=\{x^1,x^2,\cdots,x^{n_i}\}$$
+- 我们在 $S_i$ 上的每一个实例使用最大池化得到一个新的特征图 $S_{ci}\in\mathbb{R}^{n_i{\times}d}$。
+- 然后使用3个卷积层得到类别 $l_i$ 的分数向量 $\lambda_i\in\mathbb{R}^d$。
+- 根据这个分数来定义新的距离函数：
+$$d(c_i,q^{\prime})=(c_i-q^{\prime})^2\cdot\lambda_i$$
+其中 $q^{\prime}$ 是词层面注意力机制传递的query向量。
+
+#### 词层面注意力
+- 不同词语的重要性是不平等的。我们采用一种注意力机制来获取这些重要的单词，并将它们组成一个信息量更大的实例向量 $s^j$：
+$$\begin{align*}
+u_t^j&={\rm{tanh}}(W_wh_t^j+b_w)\\
+v_t^j&={u_t^j}^{\top}u_w\\
+\alpha_t^j&=\frac{{\rm{exp}}(v_t^j)}{\sum_t{\rm{exp}}(v_t^j)}\\
+s^j&=\sum\limits_t\alpha_t^jh_t^j
+\end{align*}$$
+其中 $h_t^j$ 是实例 $x^j$ 的隐藏单元嵌入，由实例编码器编码。
+
+#### 实例层次多交叉注意力
+- 给定类别 $l_i$ 的support set $S_i^{\prime}\in\mathbb{R}^{n_i{\times}d}$ 和query向量 $q^{\prime}\in\mathbb{R}^d$，我们考虑 $S_i^{\prime}$ 中的support向量 $s_i^j$，每个 $s_i^j$ 有权重 $\beta_i^j$ 和query $q^{\prime}$。那么原型向量式子重写为：
+$$c_i=\sum\limits_{j=1}^{n_i}\beta_i^js_i^j$$
+我们定义 $r_i^j=\beta_i^js_i^j$ 作为权重原型向量，定义 $\beta_i^j$ 为：
+$$\begin{align*}
+\beta_i^j&=\frac{{\rm{exp}}(\gamma_i^j)}{\sum_{j=1}^{n_i}{\rm{exp}}(\gamma_i^j)}\\
+\gamma_i^j&={\rm{sum}}\{\sigma(f_\varphi(mca))\}\\
+mca&=[s_{i\phi}^j{\oplus}q_\phi^{\prime}{\oplus}\tau_1{\oplus}\tau_2]\\
+\tau_1&=|s_{i\phi}^j-q_{\phi}^{\prime}|,\tau_2=s_{i\phi}^j{\odot}q_{\phi}^{\prime}\\
+s_{i\phi}^j&=f_{\phi}(s_i^j),q_{\phi}^{\prime}=f_{\phi}(q^{\prime})
+\end{align*}$$
+其中 $f_\phi$ 是一个线性层，$|\cdot|$ 是逐元素绝对值，$\odot$ 是逐元素乘积，$mca$ 是得到的多交叉注意力信息。$f_\varphi(\cdot)$ 是另一个线性层，$\sigma(\cdot)$ 是 ${\rm{tanh}}$ 激活函数，$sum\{\cdot\}$ 是求和算子。得到的 $\gamma_i^j$ 是support set $s_i$ 上实例 $j$ 的权重。然后通过softmax分类器得到一个概率分布 $\beta_i^j$。
+- 通过多交叉注意力机制，原型可以更加关注那些与query相关的support实例。
 
 ## 7.10 2019-Proto-HATT
+- 用于噪声少样本关系分类的基于混合注意力机制的原型网络</br>
+(Hybrid Attention-Based Prototypical Networks for Noisy Few-Shot Relation Classification)
+### 7.10.1 符号和定义
+- 在给定关系集 $R$ 和support set $S$ 的情况下，少样本关系分类定义为，预测query实例 $x$ 和实体对 $(h,t)$ 之间关系 $r$ 的任务。$S$ 定义如下：
+$$\begin{align*}
+S=&\{(x_1^1,h_1^1,t_1^1,r_1),\cdots,(x_1^{n_1},h_1^{n_1},t_1^{n_1},r_1),\\
+&\cdots,\\
+&(x_m^1,h_m^1,t_m^1,r_m),\cdots,(x_m^{n_m},h_m^{n_m},t_m^{n_m},r_m)\}
+\end{align*}$$
+其中 $r_1,r_2,\cdots,r_m\in\mathbb{R}$，$(x_i^j,h_i^j,t_i^j,r_i)$ 是指实例 $x_i^j$ 的语义表示对 $(h_i^j,t_i^j)$ 之间存在关系 $r_i$。实例 $x_i^j$ 是词嵌入 $\{w_1,w_2,\cdots\}$。
+- 在少样本学习(FSL)场景中，关系 $r_i$ 的实例数 $n_i$ 通常非常小。少样本关系分类模型需要从support set $S$ 中的少量实例中学习特征，并预测任意给定的query实例和 $x$ 的关系 $r$。
+- $N$ way $K$ shot的少样本关系分类设置如下：
+$$N=m=|\mathcal{R}|,K=n_1=\cdots=n_m$$
+
+### 7.10.2 模型架构
+- 模型包括三部分：实例编码器、原型网络、混合注意力。结构如图所示：
+
+![](./img/7.10.1Proto-HATT.png)
+#### 实例编码器
+- 给定实例 $\{x_1,\cdots,x_n\}$，我们使用CNN将原始实例编码为连续的低维嵌入 $x$。实例编码器由嵌入层和编码层组成。
+###### 嵌入层
+- 嵌入层用于将实例中离散的词映射为连续的嵌入。我们通过预训练GloVe将实例中的每个词映射为实值嵌入 $w_i\in\mathbb{R}^{d_w}$。
+- 距离越近的词语对关系判定的影响越大，因此我们采用位置嵌入。对于每个词 $x_i$，我们将其到两个实体的相对距离嵌入到两个 $d_p$ 维向量中，然后将它们concat起来作为一个统一的位置嵌入 $p_i\in\mathbb{R}^{2{\times}d_p}$。
+- 可以通过将每个单词的词嵌入和位置嵌入concat起来得到最终的输入嵌入。所有嵌入合一起得到：
+$$\{e_1.\cdots,e_n\}=\{[w_1;p_1],\cdots,[w_n;p_n]\}$$
+$$e_i\in\mathbb{R}^{d_i},d_i=d_w+d_p{\times}2$$
+###### 编码层
+- 在编码层，我们选择CNN将输入嵌入 $\{e_1,\cdots,e_n\}$ 编码为最终的实例嵌入。通过一个窗口大小为 $m$ 的卷积核，来得到 $d_h$ 维的隐藏嵌入：
+$$h_i={\rm{CNN}}(e_{i-\frac{m-1}{2}},\cdots,e_{i+\frac{m-1}{2}})$$
+- 然后放入池化层得到实例嵌入：
+$$[\mathbf{x}]_j={\rm{max}}\{[h_1]_j,\cdots,[h_n]_j\}$$
+其中 $[\cdot]_j$ 是向量的第 $j$ 个值。
+- 将上述编码过程简化为下式：
+$$\mathbf{x}=f_\phi(x)$$
+其中 $\phi$ 是实例化编码器的可学习参数。
+
+#### 原型网络
+- 原型网络的主要思想是：用一个原型向量来表示每个关系。计算原型向量的一般方法是平均support set中的所有实例嵌入：
+$$c_i=\frac{1}{n_i}\sum\limits_{j=1}^{n_i}\mathbf{x}_i^j$$
+其中 $c_i$ 是所求的原型向量。$n_i$ 是support set中 $S$ 中关系 $r_i$ 的实例个数。
+- 通过softmax分类器得到这些关系的概率：
+$$p_\phi(y=r_i|x)=\frac{{\rm{exp}}(-d(f_\phi(x),c_i))}{\sum_{j=1}^{|\mathcal{R}|}{\rm{exp}}(-d(f_\phi(x),c_j))}$$
+其中 $d(\cdot,\cdot)$ 是两个向量的距离函数。
+
+#### 混合注意力
+- 混合注意力由两个模块组成，实例级注意力模块用于选择support set中更多的信息实例，特征级注意力模块用于突出距离函数中的重要维度。
+###### 实例级注意力
+- 为了增强原型网络的能力，我们提出了一个实例级注意力模块，将更多的注意力集中在那些query相关的实例上，减少噪声的影响。
+- 给定一个query时，并不是所有的实例都是同等重要的，为每个实例表示赋予一个权重 $\alpha_j$，则 $c_i$ 为：
+$$c_i=\sum\limits_{j=1}^{n_i}\alpha_j\mathbf{x}_i^j$$
+- $\alpha$ 由下式得到：
+$$\begin{align*}
+\alpha_j&=\frac{{\rm{exp}}(e_j)}{\sum_{k=1}^{n_i}{\rm{exp}}(e_k)}\\
+e_j&={\rm{sum}}\{\sigma(g(\mathbf{x}_i^j){\odot}g(\mathbf{x}))\}
+\end{align*}$$
+其中 $g(\cdot)$ 是一个线性层，$\odot$ 是逐元素相乘，$\sigma(\cdot)$ 是激活函数，${\rm{sum}}\{\cdot\}$ 将向量的所有元素相加。
+###### 特征级注意力
+- 原始模型采用简单的欧氏距离作为距离函数。由于query set中只有很少的实例，从其中提取的特征存在数据稀疏性问题。因此，某些维度对特征空间中的特殊关系具有更强的区分性。
+- 我们提出了特征级注意力来缓解特征稀疏性问题，在计算空间距离时会更加关注那些更具判别性的特征维度：
+$$d(s_1,s_2)=z_i\cdot(s_1-s_2)^2$$
+其中 $z_i$ 是关系 $r_i$ 的注意力分数。
+- 特征级注意力分数由以下模型结构得到：
+
+![](./img/7.10.2Proto-HATT.png ':size=30%')
+
+根据关系的分布计算每个维度特征的线性可分性。一个特征维度越有价值，其对应的得分就越高。
+
+
 
 ## 7.11 2019-STCKA
+- 具有知识驱动注意力的深度短文本分类</br>
+(Deep Short Text Classification with Knowledge Powered Attention)
+
+### 7.11.1 模型
+- 模型STCKA是一个知识增强的深度神经网络，结构如图所示：
+
+![](./img/7.11.1STCKA.png ':size=100%')
+
+- 网络的输入是一个短文本 $s$。网络的输出是类标签的概率分布。我们用 $p(y|s,\phi)$ 表示短文本属于 $y$ 类的概率，其中 $\phi$ 是网络中的参数。
+- 我们的模型包含四个模块。知识检索模块从知识库中检索与短文本相关的概念信息。输入嵌入模块利用短文本的特征和单词级别特征生成单词和概念的表示。短文本编码模块通过自注意力对短文本进行编码，产生短文本表示 $q$。知识编码模块在概念向量上应用两种注意力机制得到概念表示 $p$。然后将 $p$ 和 $q$ 连接起来，融合短文本和概念信息，并将其放入全连接层。最后，我们使用一个输出层来获取每个类标签的概率。
+
+#### 知识检索模块
+- 该模块的目标是从知识库中检索相关知识。本文以isA关系为例，其他语义关系如isPropertyOf也可以类似的方式应用。具体来说，
+
+- 给定一个短文本 $s$，我们希望找到一个与之相关的概念集 $\mathcal{C}$。我们通过实体链接和概念化两个步骤来实现这一目标。
+    - 实体链接是NLP中的一项重要任务，用于识别短文本中提到的实体。我们通过现有的实体链接解决方案获取短文本的实体集合 $\mathcal{E}$。
+    - 然后，对于每个实体 $e\in\mathcal{E}$，我们通过概念化的方式从现有的知识库中获取其概念信息，例如YAGO，Probase和CNProbase。
+
+#### 输入嵌入模块
+- 输入由两部分组成：长度为 $n$ 的短文本 $s$ 和大小为 $m$ 的概念集 $\mathcal{C}$。
+- 我们在该模块中使用了三种嵌入：特征嵌入、词嵌入和概念嵌入。
+    - 我们使用卷积神经网络来获得每个单词的特征级别嵌入。
+    - 使用预训练的词向量来获得每个单词的词嵌入。
+- 得到三个维数为 $d/2$ 的嵌入，我们将特征嵌入和词/概念嵌入concat起来得到 $d$ 维词/概念表示。
+
+#### 短文本编码模块
+- 该模块的目标是为长度为 $n$ 的短文本 $(x_1,x_2,\cdots,x_n)$ 生成短文本表示 $q$。
+- 我们使用双向LSTM：
+$$\begin{align*}
+\mathop{h_t}\limits^{\rightarrow}&=\mathop{\rm{LSTM}}\limits^{\longrightarrow}(x_t,\mathop{h_{t-1}}\limits^{\longrightarrow})\\
+\mathop{h_t}\limits^{\leftarrow}&=\mathop{\rm{LSTM}}\limits^{\longleftarrow}(x_t,\mathop{h_{t+1}}\limits^{\longleftarrow})
+\end{align*}$$
+- concat起来得到隐藏状态 $h_t=[\mathop{h_t}\limits^{\rightarrow};\mathop{h_t}\limits^{\leftarrow}]$，所有隐藏状态记为 $H\in\mathbb{R}^{n{\times}2u}$：
+$$H=(h_1,h_2,\cdots,h_n)$$
+- 使用标量点积注意力来学习句子内部的依存关系。给定 $n$ 个query向量的矩阵 $Q\in\mathbb{R}^{n{\times}2u}$，Keys $K\in\mathbb{R}^{n{\times}2u}$ 和value $V\in\mathbb{R}^{n{\times}2u}$，通过下式计算注意力分数：
+$$A={\rm{Attention}}(Q,K,V)={\rm{softmax}}(\frac{QK^T}{\sqrt{2u}})V$$
+$Q,K,V$ 我们使用相同的矩阵 $H$，$\frac{1}{sqrt{2u}}$ 是标量因子。
+- 然后对 $A$ 使用最大池化层得到短文本表示 $q\in\mathbb{R}^{2u}$。
+
+#### 知识编码模块
+- 从知识库等外部资源中获得的先验知识提供了更丰富的信息，有助于在短文本中确定类别标签。
+- 我们以概念信息为例说明知识编码，给定一个大小为 $m$ 的概念集 $\mathcal{C}$ 记为 $(c_1,c_2,\cdots,c_m)$，其中 $c_i$ 是第 $i$ 个概念向量，我们的目标是产生它的向量表示 $p$。
+- 我们引入两种注意力机制：
+    - 面向短文本的概念(C-ST)注意力，度量第 $i$ 个概念和短文本表示 $q$ 之间的语义相似度：
+    $$\alpha_i={\rm{softmax}}(w_1^{\top}f(W_1[c_i;q]+b_1))$$
+    其中 $\alpha_i$ 表示第 $i$ 个概念对短文本的注意力权重。$\alpha_i$ 越大表示第 $i$ 个概念与短文本在语义上越相似。$f(\cdot)$ 是非线性激活函数。$W_1\in\mathbb{R}^{d_a{\times}(2u+d)}$ 是权重矩阵，$w_1\in\mathbb{R}^{d_a}$ 是权重向量，$d_a$ 是超参数，$b_1$ 是偏置项。
+    - 此外，为了考虑概念的相对重要性，我们提出了面向概念集合的概念(C-CS)注意力，来衡量每个概念相对于整个概念集的重要性：
+    $$\beta_i={\rm{softmax}}(w_2^{\top}f(W_2c_i)+b_2)$$
+    其中 $\beta_i$ 表示第 $i$ 个概念对整个概念集的关注权重。$W_2\in\mathbb{R}^{d_b{\times}d}$ 为权重矩阵，$w_2\in\mathbb{R}^{d_b}$ 为权重向量，其中 $d_b$ 为超参数，$b_2$ 为偏置项。
+- 我们通过以下公式将 $\alpha_i$ 和 $\beta_i$ 进行组合，得到每个概念的最终注意力权重：
+$$\begin{align*}
+a_i&={\rm{softmax}}(\gamma\alpha_i+(1-\gamma)\beta_i)\\
+&=\frac{{\rm{exp}}(\gamma\alpha_i+(1-\gamma)\beta_i)}{\sum_{k\in[1,m]}{\rm{exp}}(\gamma\alpha_k+(1-\gamma)\beta_k)}
+\end{align*}$$
+其中 $a_i$ 表示从第 $i$ 个概念到短文本的最终注意力权重，$\gamma\in[0,1]$ 是调节两个注意力权重重要性的软开关。
+- 参数 $\gamma$ 的设定有多种方式。最简单的方法是将其作为一个超参数，通过手动调节来获得最佳性能。或者，也可以通过神经网络自动学习。我们选择后一种方法，因为它在不同的数据集上自适应地为 $\gamma$ 分配不同的值，并取得了更好的实验结果。
+- 我们通过以下公式计算 $\gamma$：
+$$\gamma=\sigma(w^{\top}[\alpha;\beta]+b)$$
+其中向量 $w$ 和标量 $b$ 是可学习参数，$\sigma$ 是sigmoid函数。
+- 最后，使用最终的注意力权重计算概念向量的加权和，从而得到一个表示概念的语义向量：
+$$p=\sum\limits_{i=1}^ma_ic_i$$
+
+### 7.11.2 训练
+- 将所有可训练的参数用集合 $\phi$ 表示。目标函数通过最大化对数似然得到：
+$$\phi\rightarrow\sum\limits_{s{\in}S}{\rm{log}}p(y|s,\phi)$$
+其中 $S$ 是短文本训练集，$y$ 是正确分类的短文本。
