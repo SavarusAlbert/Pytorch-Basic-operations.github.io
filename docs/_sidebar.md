@@ -40,3 +40,7 @@
             - [RNN系列论文泛读](Language_model/chapter6.md)
             - [Attention系列论文泛读](Language_model/chapter7.md)
             - [Transformer系列论文泛读](Language_model/chapter8.md)
+    - 实战代码学习
+        - [基础代码部分](Code/chapter1.md)
+        - [NLTK API学习](Code/chapter2.md)
+        - [模型代码部分](Code/chapter3.md)
