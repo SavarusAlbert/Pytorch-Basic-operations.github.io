@@ -786,7 +786,7 @@ $$\begin{align*}
 $$H=(h_1,h_2,\cdots,h_n)$$
 - 使用标量点积注意力来学习句子内部的依存关系。给定 $n$ 个query向量的矩阵 $Q\in\mathbb{R}^{n{\times}2u}$，Keys $K\in\mathbb{R}^{n{\times}2u}$ 和value $V\in\mathbb{R}^{n{\times}2u}$，通过下式计算注意力分数：
 $$A={\rm{Attention}}(Q,K,V)={\rm{softmax}}(\frac{QK^T}{\sqrt{2u}})V$$
-$Q,K,V$ 我们使用相同的矩阵 $H$，$\frac{1}{sqrt{2u}}$ 是标量因子。
+$Q,K,V$ 我们使用相同的矩阵 $H$，$\frac{1}{\sqrt{2u}}$ 是标量因子。
 - 然后对 $A$ 使用最大池化层得到短文本表示 $q\in\mathbb{R}^{2u}$。
 
 #### 知识编码模块

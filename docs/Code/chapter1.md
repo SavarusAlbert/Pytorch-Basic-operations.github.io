@@ -172,6 +172,27 @@ class HMM():
 ```
 
 #### 条件随机场模型(CRF)
+- 4-tag CRF标注：B(Begin，词首), E(End，词尾), M(Middle，词中), S(Single,单字词)
+```python
+# 定义标注函数，将形如 "人们 常 说 生活 是 一 部 教科书" 的句子进行4-tag标注
+def character_tagging(input_file, output_file):
+    input_data = open(input_file, 'r', encoding='utf-8')
+    output_data = open(output_file, 'w', encoding='utf-8')
+    for line in input_data.readlines():
+        word_list = line.strip().split()
+        for word in word_list:
+            if len(word) == 1:
+                output_data.write(word + "\tS\n")
+            else:
+                output_data.write(word[0] + "\tB\n")
+                for w in word[1:len(word)-1]:
+                    output_data.write(w + "\tM\n")
+                output_data.write(word[len(word)-1] + "\tE\n")
+        output_data.write("\n")
+    input_data.close()
+    output_data.close()
+```
+- 使用 [CRF++](http://taku910.github.io/crfpp/) 工具包训练
 
 ### 1.2.3 分词常用评价指标
 - 正负样本预测情况：
@@ -332,5 +353,3 @@ import jieba.analyse
 # 输出文本text中的前5个td-idf重要单词
 keywords = jieba.analyse.extract_tags(text, topK=5, withWeight=False, allowPOS=())
 ```
-### 1.4.2 计数/密度/可读性特征
-
