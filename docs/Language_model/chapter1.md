@@ -8,31 +8,19 @@
 - 语言模型的发展可以分为两个大的阶段，分别是使用n-gram语言模型的统计语言模型阶段，和后来居上的神经网络语言模型阶段。
 - 神经网络语言模型又可以分为早期的以设计神经网络结构为主的阶段和目前的通过巨量语料进行训练，再通过微调进行部署的预训练语言模型阶段。
 
-## 1.2 语言模型任务分类及主流算法
-#### 文本分类任务
-- 主要算法：Fasttext；ReNN；MLP；RNN；CNN；Attention；Transformer；GNN
+## 1.2 语言模型任务分类
+### 1.2.1 序列标注
+- (中文)分词；词性标注；命名实体识别、依存分析；语义角色标注
+### 1.2.2 相似匹配
+- QA、文本聚类、推荐算法、信息检索
+### 1.2.3 句词分类
+- 句子级别的分类任务：文本分类、情感分析、意图识别、信息抽取
+- Token级别的分类：实体抽取、阅读理解
+### 1.2.4 文本生成
+- 文本摘要、文本纠错、机器翻译、智能对话
+### 1.2.5 文本推理
 
-#### 句间匹配
-- 主要算法：Representation based；interaction-based
-
-#### 序列标注
-- 主要算法：Embedding Module；Context Encoder Module；Inference Module
-
-#### 文本生成
-
-#### 语言模型
-- 主要算法：word level；sentence level
-
-## 1.3 下游任务分类
-#### 单一任务
-- 词法分析：分词；词性识别；NER
-- 句法分析：依存分析；语义角色标注
-- 语义分析：情感分析；意图识别；信息抽取；同义识别；指代消解；阅读理解；文本纠错
-- 文本生成：生成式摘要；机器翻译；对话问答
-#### 复杂任务
-- 搜索、推荐；对话；知识图谱
-
-## 1.4 统计语言模型
+## 1.3 统计语言模型
 - 基于 $n-{\rm{gram}}$ 的模型定义了一个条件概率：给定前 $n-1$ 个标记后的第 $n$ 个标记的条件概率。
 - 使用这些条件概率的分布的乘积定义较长序列的概率分布：
 $$P(x_1,\cdots,x_\tau)=P(x_1,\cdots,x_{n-1})\prod\limits_{t=n}^{\tau}P(x_t|x_{t-n+1},\cdots,x_{t-1})$$
@@ -42,29 +30,25 @@ $$P(x_1,\cdots,x_\tau)=P(x_1,\cdots,x_{n-1})\prod\limits_{t=n}^{\tau}P(x_t|x_{t-
     - 为解决这一问题，引入了数据平滑的方法，其基本思想为调整最大似然估计的概率值，使零概率增值，使非零概率下调，“劫富济贫”，消除零概率，改进模型的整体正确率。具体方法有Good-Turing法，Katz后退法，绝对减值法，线性减值法等。
 - 为了提高 $n-{\rm{gram}}$ 模型的统计效率，基于类的语言模型(class-based language model)引入词类别的概念，然后属于同一类别的词共享词之间的统计强度。
 
-## 1.5 神经网络语言模型
+## 1.4 神经网络语言模型
 - 神经语言模型是一类用来客服维数灾难的语言模型，它使用词的分布式表示对自然语言序列建模。
 - 神经语言模型将词以抽象符号的表示方法转变为了语义空间下的向量表示(词嵌入)，再以向量表示的单词序列作为神经网络的输入，来求词的概率。
-### 1.5.1 序列标注
-- 主要算法：
-    - Bi-LSTM+CRF
-    - ID-CNN+CFR
-    - ELMO+Bi-LSTM+CFR
-    - CVT+Multi-task+BERT
+### 1.4.1 序列标注
+- 主要算法：HMM、CRF、viterbi算法
+- 常用框架：LM+(Bi-)LSTM/GRU+CFR
 
-### 1.5.2 文本分类
+### 1.4.2 相似匹配
+- 主要算法：Jaccard相似系数、Levenshtein编辑距离、simhash相似度、Bm25相似度、TF-IDF、VSM(向量空间模型)算法(余弦相似度)、BERT/ALBERT based model
+
+### 1.4.3 文本分类
 - 主要算法：
     - FastText
-    - CNN：TextCNN、VeryDeep CNN、GCNN
-    - RNN：TextRNN、TextLSTM、Attention
-    - 基于上下文的LM：BERT、EMLo、GPT、ULMFiT
+    - ReNN
+    - CNN：TextCNN、DCNN、DPCNN等
+    - RNN：TextRNN、TextLSTM等
+    - Attention：Bi-Attention、AttentionXML、ELMo等
+    - Transformer：BERT、ALBERT、GPT等
+    - GNN：TextGCN等
 
-### 1.5.3 文本匹配
-- 主要算法：
-    - Siamese
-    - Interaction
-
-### 1.5.4 语言模型
-- 主要算法：
-    - BERT：BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding
-    - GPT
+### 1.4.4 文本生成
+- 主要算法：Seq2Seq、SeqGAN、Transformer、GPT

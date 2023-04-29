@@ -33,13 +33,14 @@
     - [Language model]
         - [语言模型](Language_model/chapter1.md)
         - [词嵌入](Language_model/chapter2.md)
-        - 文本分类论文精读
+        - 文本分类论文泛读
             - [RecNN系列论文泛读](Language_model/chapter3.md)
             - [MLP系列论文泛读](Language_model/chapter4.md)
             - [CNN系列论文泛读](Language_model/chapter5.md)
             - [RNN系列论文泛读](Language_model/chapter6.md)
             - [Attention系列论文泛读](Language_model/chapter7.md)
             - [Transformer系列论文泛读](Language_model/chapter8.md)
+        - [GPT系列论文泛读](./Language_model/chapter9.md)
     - 实战代码学习
         - [基础代码部分](Code/chapter1.md)
         - [NLP常用工具包学习](Code/chapter2.md)
