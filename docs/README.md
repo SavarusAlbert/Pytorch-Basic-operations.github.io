@@ -38,6 +38,11 @@ Pytorch/Numpy/Pandas/Sklearn 学习笔记
         - RNN系列论文泛读
         - Attention系列论文泛读
         - Transformer系列论文泛读
+    - GPT系列论文泛读
+- 实战代码学习
+    - 基础代码部分
+    - NLP常用工具包学习
+    - 模型代码部分
 
 ## 学习资料
 - [深入浅出PyTorch](https://datawhalechina.github.io/thorough-pytorch/index.html)
