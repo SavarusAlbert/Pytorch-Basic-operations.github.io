@@ -1,4 +1,4 @@
-# MLP系列论文泛读
+# MLP系列论文
 ## 4.1 2014-Paragraph-Vec
 - 句子和文档的分布式表示</br>
 (Distributed Representations of Sentences and Documents)

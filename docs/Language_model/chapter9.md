@@ -1,4 +1,4 @@
-# GPT系列论文泛读
+# GPT系列论文
 ## 9.1 RLHF
 - Augmenting Reinforcement Learning with Human Feedback</br>
 (基于人工反馈的增强强化学习)

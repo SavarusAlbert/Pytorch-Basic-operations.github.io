@@ -1,15 +1,15 @@
 <!-- docs/_sidebar.md -->
 - [目录](README.md)
-    - [Pytorch API]
+    - Pytorch API
         - [chapter01 Pytorch基础操作](Pytorch/chapter1.md)
         - [chapter02 Pytorch的主要组成模块](Pytorch/chapter2.md)
         - [chapter03 Pytorch模型定义](Pytorch/chapter3.md)
         - [chapter04 Pytorch进阶技巧](Pytorch/chapter4.md)
-    - [Numpy API]
+    - Numpy API
         - [chapter01 Numpy数组的创建](Numpy/chapter1.md)
         - [chapter02 Numpy数组的基本操作](Numpy/chapter2.md)
         - [chapter03 Numpy在模型训练中的操作](Numpy/chapter3.md)
-    - [Pandas API]
+    - Pandas API
         - [chapter01 Pandas基础](Pandas/chapter1.md)
         - [chapter02 索引](Pandas/chapter2.md)
         - [chapter03 分组](Pandas/chapter3.md)
@@ -19,28 +19,28 @@
         - [chapter07 文本数据](Pandas/chapter7.md)
         - [chapter08 分类数据](Pandas/chapter8.md)
         - [chapter09 时序数据](Pandas/chapter9.md)
-    - [Generative model]
+    - Generative model
         - [生成模型](Generative_model/chapter1.md)
         - VAE、DDPM、LDM论文精读
-            - [VAE论文精读](Generative_model/chapter2.md)
-            - [DDPM论文精读](Generative_model/chapter3.md)
-            - [LDM论文泛读](Generative_model/chapter4.md)
+            - [VAE论文](Generative_model/chapter2.md)
+            - [DDPM论文](Generative_model/chapter3.md)
+            - [LDM论文](Generative_model/chapter4.md)
         - Flow论文精读
-            - [NICE论文泛读](Generative_model/chapter5.md)
-            - [Real NVP论文泛读](Generative_model/chapter6.md)
-            - [Glow论文泛读](Generative_model/chapter7.md)
-            - [DeFlow论文泛读](Generative_model/chapter8.md)
-    - [Language model]
+            - [NICE论文](Generative_model/chapter5.md)
+            - [Real NVP论文](Generative_model/chapter6.md)
+            - [Glow论文](Generative_model/chapter7.md)
+            - [DeFlow论文](Generative_model/chapter8.md)
+    - Language model
         - [语言模型](Language_model/chapter1.md)
         - [词嵌入](Language_model/chapter2.md)
-        - 文本分类论文泛读
-            - [RecNN系列论文泛读](Language_model/chapter3.md)
-            - [MLP系列论文泛读](Language_model/chapter4.md)
-            - [CNN系列论文泛读](Language_model/chapter5.md)
-            - [RNN系列论文泛读](Language_model/chapter6.md)
-            - [Attention系列论文泛读](Language_model/chapter7.md)
-            - [Transformer系列论文泛读](Language_model/chapter8.md)
-        - [GPT系列论文泛读](./Language_model/chapter9.md)
+        - 文本分类论文
+            - [RecNN系列论文](Language_model/chapter3.md)
+            - [MLP系列论文](Language_model/chapter4.md)
+            - [CNN系列论文](Language_model/chapter5.md)
+            - [RNN系列论文](Language_model/chapter6.md)
+            - [Attention系列论文](Language_model/chapter7.md)
+            - [Transformer系列论文](Language_model/chapter8.md)
+        - [GPT系列论文](./Language_model/chapter9.md)
     - 实战代码学习
         - [基础代码部分](Code/chapter1.md)
         - [NLP常用工具包学习](Code/chapter2.md)

@@ -1,4 +1,4 @@
-# NICE论文泛读
+# NICE论文
 非线性独立成分估计(NON-LINEAR INDEPENDENT COMPONENTS ESTIMATION)
 
 ## 5.1 模型概述

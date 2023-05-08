@@ -1,4 +1,4 @@
-# Transformer系列论文泛读
+# Transformer系列论文
 ## 8.1 2019-BERT
 - 用于语言理解的深度双向Transformer预训练</br>
 (Pre-training of Deep Bidirectional Transformers for Language Understanding)

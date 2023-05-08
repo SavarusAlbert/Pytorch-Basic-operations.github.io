@@ -1,4 +1,4 @@
-# LDM论文泛读
+# LDM论文
 - 基于潜在扩散模型的高分辨率图像合成(High-Resolution Image Synthesis with Latent Diffusion Models)
 - Diffusion model是一种likelihood-based的模型，相比GAN可以取得更好的生成效果。然而该模型是一种自回归模型，需要反复迭代计算，训练和推理都十分昂贵。
 - LDM将扩散过程改在潜在空间中，大大减少计算复杂度，同时也能达到十分不错的生成效果。

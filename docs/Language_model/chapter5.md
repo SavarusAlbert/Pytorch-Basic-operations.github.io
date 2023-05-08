@@ -1,4 +1,4 @@
-# CNN系列论文泛读
+# CNN系列论文
 ## 5.1 2014-TextCNN
 - 用于句子分类的卷积神经网络</br>
 (Convolutional Neural Networks for Sentence Classification)

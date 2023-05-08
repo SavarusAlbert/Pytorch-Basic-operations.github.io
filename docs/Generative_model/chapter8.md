@@ -1,4 +1,4 @@
-# DeFlow论文泛读
+# DeFlow论文
 - 从非配对数据中学习随机图像退化</br>
 (Learning Complex Image Degradations from Unpaired Data with Conditional Flows)
 

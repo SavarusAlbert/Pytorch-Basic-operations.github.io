@@ -1,4 +1,4 @@
-# Attention系列论文泛读
+# Attention系列论文
 ## 7.1 2016-HAN
 - 用于文档分类的层次注意力网络</br>
 (Hierarchical Attention Networks for Document Classification)

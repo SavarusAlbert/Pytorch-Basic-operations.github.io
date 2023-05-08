@@ -1,4 +1,4 @@
-# RNN系列论文泛读
+# RNN系列论文
 ## 6.1 2015-Tree-LSTM
 - 树结构的长短期记忆网络的改进语义表示</br>
 (Improved Semantic Representations From Tree-Structured Long Short-Term Memory Networks)
